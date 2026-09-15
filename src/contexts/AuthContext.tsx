@@ -20,7 +20,7 @@ function isUser(value: unknown): value is User {
     typeof user.id === 'string' &&
     typeof user.name === 'string' &&
     typeof user.email === 'string' &&
-    (user.role === 'PROFESSOR' || user.role === 'STUDENT')
+    (user.role === 'Professor' || user.role === 'Student')
   );
 }
 
@@ -44,9 +44,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const login = (data: LoginResponse) => {
+    const user: User = {
+      name: data.name,
+      email: data.email,
+      role: data.role,
+    };
     localStorage.setItem('@T4English:token', data.token);
-    localStorage.setItem('@T4English:user', JSON.stringify(data.user));
-    setUser(data.user);
+    localStorage.setItem('@T4English:user', JSON.stringify(user));
+    setUser(user);
   };
 
   const logout = () => {

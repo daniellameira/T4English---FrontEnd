@@ -1,13 +1,13 @@
-export type UserRole = 'PROFESSOR' | 'STUDENT';
-
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-}
-
 export interface LoginResponse {
   token: string;
-  user: User;
+  name: string;
+  email: string;
+  role: string; // Ex: "Professor" ou "Student"
+  expiresAt: string;
+}
+
+export interface User {
+  name: string;
+  email: string;
+  role: string;
 }
