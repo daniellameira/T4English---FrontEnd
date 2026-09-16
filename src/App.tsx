@@ -1,11 +1,13 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { Home } from './pages/Home';
 import { Login } from './pages/Login';
+import { AppLayout } from './components/AppLayout';
 import type { JSX } from 'react/jsx-runtime';
 
 function PrivateRoute({ children }: { children: JSX.Element }) {
   const { isAuthenticated } = useAuth();
-  return isAuthenticated ? children : <Navigate to="/login" />;
+  return isAuthenticated ? <AppLayout>{children}</AppLayout> : <Navigate to="/login" />;
 }
 
 export function App() {
@@ -13,12 +15,16 @@ export function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          {/* Rota Publica Inicial */}
+          <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
+
+          {/* Rotas Protegidas com Layout */}
           <Route 
             path="/dashboard/professor" 
             element={
               <PrivateRoute>
-                <div style={{ padding: '2rem' }}><h1>Dashboard do Professor</h1></div>
+                <div><h1>Dashboard do Professor</h1></div>
               </PrivateRoute>
             } 
           />
@@ -26,11 +32,11 @@ export function App() {
             path="/dashboard/student" 
             element={
               <PrivateRoute>
-                <div style={{ padding: '2rem' }}><h1>Dashboard do Aluno</h1></div>
+                <div><h1>Dashboard do Aluno</h1></div>
               </PrivateRoute>
             } 
           />
-          <Route path="*" element={<Navigate to="/login" />} />
+          <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
