@@ -5,14 +5,13 @@
   --text-main: #181818;
   --text-muted: #555555;
   --brand-red: #E05A67;
-  --brand-red-hover: #c94a56;
   --white: #FFFFFF;
 
-  /* Tipografia Solicitada */
-  --font-title: 'Bungee', cursive;          /* Títulos principais e destaques */
-  --font-subtitle: 'Fredoka', sans-serif;    /* Subtítulos, cards e botões */
-  --font-body: 'Capriola', sans-serif;      /* Textos comuns e parágrafos */
-  --font-symbol: 'Arial', sans-serif;        /* Símbolos e fonética IPA */
+  /* Fontes da Identidade Visual */
+  --font-title: 'Bungee', cursive;
+  --font-subtitle: 'Fredoka', sans-serif;
+  --font-body: 'Capriola', sans-serif;
+  --font-symbol: 'Arial', sans-serif;
 }
 
 * {
@@ -27,21 +26,65 @@ body {
   color: var(--text-main);
 }
 
-/* Aplicação Global das Famílias */
+/* Tipografias */
 h1, h2 {
   font-family: var(--font-title);
   letter-spacing: 0.5px;
 }
 
-h3, h4, h5, h6, button, .subtitle {
+h3, h4, h5, h6, button, .subtitle-font {
   font-family: var(--font-subtitle);
 }
 
-p, span, input, label, table, td, th {
+p, span, input, label, a {
   font-family: var(--font-body);
 }
 
-/* Classe utilitária para os símbolos do IPA futuramente */
-.ipa-symbol {
-  font-family: var(--font-symbol) !important;
+/* Estilo Doodle / Caderno Rabiscado */
+.doodle-bg {
+  background-color: var(--bg-bege);
+  /* Padrao de linhas de caderno/pontilhado suave */
+  background-image: radial-gradient(var(--bg-bege-dark) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Card estilo Ilustrado */
+.doodle-card {
+  background-color: var(--white);
+  border: 2px solid var(--text-main);
+  border-radius: 16px;
+  box-shadow: 4px 4px 0px var(--text-main);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.doodle-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 6px 6px 0px var(--text-main);
+}
+
+/* Container do Hero com suporte a posicionamento absoluto */
+.hero-container {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Ícones de Rabiscos (Doodles) Flutuantes */
+.doodle-icon {
+  position: absolute;
+  color: var(--text-main);
+  opacity: 0.25; /* Suave para não ofuscar o texto */
+  pointer-events: none;
+  animation: floatDoodle 4s ease-in-out infinite alternate;
+}
+
+@keyframes floatDoodle {
+  0% { transform: translateY(0px) rotate(0deg); }
+  100% { transform: translateY(-8px) rotate(5deg); }
+}
+/* Esconde alguns doodles em telas pequenas para manter a leitura limpa */
+@media (max-width: 768px) {
+  .doodle-icon {
+    opacity: 0.12 !important;
+    transform: scale(0.7) !important;
+  }
 }
