@@ -2,12 +2,9 @@ import axios from 'axios';
 
 export const api = axios.create({
   baseURL: 'http://localhost:5282/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
-// Interceptor para injetar o Token JWT no cabeçalho das requisições
+// Anexa o token JWT armazenado em todas as requisições
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('@T4English:token');
   if (token) {
@@ -16,7 +13,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Interceptor para redirecionar ao login se o token expirar
+// Trata erro de token expirado ou inválido
 api.interceptors.response.use(
   (response) => response,
   (error) => {

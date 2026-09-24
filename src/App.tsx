@@ -2,6 +2,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
+import { ProfessorDashboard } from './pages/ProfessorDashboard';
+import { StudentDashboard } from './pages/StudentDashboard';
+import { LessonView } from './pages/LessonView';
 import { AppLayout } from './components/AppLayout';
 import type { JSX } from 'react/jsx-runtime';
 
@@ -15,26 +18,34 @@ export function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* Rota Publica Inicial */}
+          {/* Rota Pública Inicial */}
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
 
-          {/* Rotas Protegidas com Layout */}
-          <Route 
-            path="/dashboard/professor" 
+          {/* Rotas Protegidas */}
+          <Route
+            path="/dashboard/professor"
             element={
               <PrivateRoute>
-                <div><h1>Dashboard do Professor</h1></div>
+                <ProfessorDashboard />
               </PrivateRoute>
-            } 
+            }
           />
-          <Route 
-            path="/dashboard/student" 
+          <Route
+            path="/dashboard/student"
             element={
               <PrivateRoute>
-                <div><h1>Dashboard do Aluno</h1></div>
+                <StudentDashboard />
               </PrivateRoute>
-            } 
+            }
+          />
+          <Route
+            path="/lesson/:id"
+            element={
+              <PrivateRoute>
+                <LessonView />
+              </PrivateRoute>
+            }
           />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>

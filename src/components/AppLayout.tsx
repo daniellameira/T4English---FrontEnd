@@ -19,31 +19,31 @@ export function AppLayout({ children }: { children: ReactNode }) {
       {/* Sidebar Lateral */}
       <aside style={{ width: '250px', backgroundColor: 'var(--text-main)', color: 'var(--white)', display: 'flex', flexDirection: 'column' }}>
         <div style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #2a2a2a' }}>
-          <img src="/logo.png" alt="T4 English" style={{ height: '42px', filter: 'brightness(0) invert(1)' }} />
+          <img src="/logo.png" alt="T4 English" style={{ height: '85px' }} />
         </div>
 
         <nav style={{ flex: 1, padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <Link
             to={isProfessor ? '/dashboard/professor' : '/dashboard/student'}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--bg-bege)', padding: '0.75rem', borderRadius: '6px', textDecoration: 'none', fontWeight: 500 }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#F4EFE6', padding: '0.75rem', borderRadius: '6px', textDecoration: 'none', fontWeight: 500 }}
           >
-            <LayoutDashboard size={18} color="var(--brand-red)" /> Dashboard
+            <LayoutDashboard size={18} color="#E05A67" /> Dashboard
           </Link>
 
           {isProfessor && (
             <Link
               to="/students"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--bg-bege)', padding: '0.75rem', borderRadius: '6px', textDecoration: 'none', fontWeight: 500 }}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#F4EFE6', padding: '0.75rem', borderRadius: '6px', textDecoration: 'none', fontWeight: 500 }}
             >
-              <Users size={18} color="var(--brand-red)" /> Gerenciar Alunos
+              <Users size={18} color="#E05A67" /> Gerenciar Alunos
             </Link>
           )}
 
           <Link
             to="/assignments"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--bg-bege)', padding: '0.75rem', borderRadius: '6px', textDecoration: 'none', fontWeight: 500 }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#F4EFE6', padding: '0.75rem', borderRadius: '6px', textDecoration: 'none', fontWeight: 500 }}
           >
-            <FileText size={18} color="var(--brand-red)" /> Tarefas
+            <FileText size={18} color="#E05A67" /> Tarefas
           </Link>
         </nav>
 

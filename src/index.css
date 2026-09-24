@@ -7,6 +7,12 @@
   --brand-red: #E05A67;
   --brand-red-hover: #c94a56;
   --white: #FFFFFF;
+
+  /* Tipografia Solicitada */
+  --font-title: 'Bungee', cursive;          /* Títulos principais e destaques */
+  --font-subtitle: 'Fredoka', sans-serif;    /* Subtítulos, cards e botões */
+  --font-body: 'Capriola', sans-serif;      /* Textos comuns e parágrafos */
+  --font-symbol: 'Arial', sans-serif;        /* Símbolos e fonética IPA */
 }
 
 * {
@@ -16,9 +22,26 @@
 }
 
 body {
-  margin: 0;
-  padding: 0;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-body);
   background-color: var(--bg-light);
   color: var(--text-main);
+}
+
+/* Aplicação Global das Famílias */
+h1, h2 {
+  font-family: var(--font-title);
+  letter-spacing: 0.5px;
+}
+
+h3, h4, h5, h6, button, .subtitle {
+  font-family: var(--font-subtitle);
+}
+
+p, span, input, label, table, td, th {
+  font-family: var(--font-body);
+}
+
+/* Classe utilitária para os símbolos do IPA futuramente */
+.ipa-symbol {
+  font-family: var(--font-symbol) !important;
 }

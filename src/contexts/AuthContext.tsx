@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
-import type { LoginResponse, User } from '../types/auth';
+import type { User, LoginResponse } from '../types/auth';
 
 interface AuthContextData {
   user: User | null;
@@ -10,48 +10,23 @@ interface AuthContextData {
 
 const AuthContext = createContext<AuthContextData>({} as AuthContextData);
 
-function isUser(value: unknown): value is User {
-  if (typeof value !== 'object' || value === null) {
-    return false;
-  }
-
-  const user = value as Record<string, unknown>;
-  return (
-    typeof user.id === 'string' &&
-    typeof user.name === 'string' &&
-    typeof user.email === 'string' &&
-    (user.role === 'Professor' || user.role === 'Student')
-  );
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
+  // Inicialização síncrona diretamente do localStorage
   const [user, setUser] = useState<User | null>(() => {
     const storedUser = localStorage.getItem('@T4English:user');
     const storedToken = localStorage.getItem('@T4English:token');
-
-    if (!storedUser || !storedToken) {
-      return null;
-    }
-
-    try {
-      const parsedUser: unknown = JSON.parse(storedUser);
-      return isUser(parsedUser) ? parsedUser : null;
-    } catch {
-      localStorage.removeItem('@T4English:token');
-      localStorage.removeItem('@T4English:user');
-      return null;
-    }
+    return storedUser && storedToken ? JSON.parse(storedUser) : null;
   });
 
   const login = (data: LoginResponse) => {
-    const user: User = {
+    const userData = {
       name: data.name,
       email: data.email,
       role: data.role,
     };
     localStorage.setItem('@T4English:token', data.token);
-    localStorage.setItem('@T4English:user', JSON.stringify(user));
-    setUser(user);
+    localStorage.setItem('@T4English:user', JSON.stringify(userData));
+    setUser(userData);
   };
 
   const logout = () => {

@@ -1,28 +1,40 @@
 import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { Target, Heart, Eye, Mail, Phone, MapPin, ArrowRight } from 'lucide-react';
 
 export function Home() {
+  const { user, isAuthenticated } = useAuth();
+  const dashboardLink = user?.role?.toUpperCase() === 'PROFESSOR'
+    ? '/dashboard/professor'
+    : '/dashboard/student';
+
   return (
     <div style={{ backgroundColor: '#FDFBF7', minHeight: '100vh', color: '#181818', fontFamily: 'sans-serif' }}>
       {/* Header Público */}
       <header style={{ backgroundColor: '#FFFFFF', borderBottom: '1px solid #E2D7C5', padding: '0.75rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <img src="/logo.png" alt="T4 English Logo" style={{ height: '48px', objectFit: 'contain', mixBlendMode: 'multiply' }} />
+          <img src="/logo.png" alt="T4 English Logo" style={{ height: '118px', objectFit: 'contain', mixBlendMode: 'multiply' }} />
         </div>
         <nav style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
           <a href="#quem-somos" style={{ color: '#181818', textDecoration: 'none', fontWeight: 500 }}>Quem Somos</a>
           <a href="#missao" style={{ color: '#181818', textDecoration: 'none', fontWeight: 500 }}>Sobre Nós</a>
           <a href="#contato" style={{ color: '#181818', textDecoration: 'none', fontWeight: 500 }}>Contato</a>
-          <Link to="/login" style={{ backgroundColor: '#E05A67', color: '#FFFFFF', padding: '0.6rem 1.25rem', borderRadius: '6px', textDecoration: 'none', fontWeight: 'bold' }}>
-            Área do Aluno / Professor
-          </Link>
+          {isAuthenticated ? (
+            <Link to={dashboardLink} style={{ backgroundColor: '#181818', color: '#FFFFFF', padding: '0.6rem 1.25rem', borderRadius: '6px', textDecoration: 'none', fontWeight: 'bold' }}>
+              Ir para meu Painel
+            </Link>
+          ) : (
+            <Link to="/login" style={{ backgroundColor: '#E05A67', color: '#FFFFFF', padding: '0.6rem 1.25rem', borderRadius: '6px', textDecoration: 'none', fontWeight: 'bold' }}>
+              Área do Aluno / Professor
+            </Link>
+          )}
         </nav>
       </header>
 
       {/* Hero Section */}
       <section style={{ padding: '5rem 2rem', textAlign: 'center', backgroundColor: '#F4EFE6' }}>
         <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-          <img src="/logo.png" alt="T4 English Logo" style={{ height: '120px', marginBottom: '1.5rem', mixBlendMode: 'multiply' }} />
+          <img src="/logo.png" alt="T4 English Logo" style={{ height: '150px', marginBottom: '1.5rem', mixBlendMode: 'multiply' }} />
           <h1 style={{ fontSize: '2.5rem', color: '#181818', marginBottom: '1rem', fontWeight: 800 }}>
             Aprenda Inglês com Estrutura e Prática Real
           </h1>
@@ -42,8 +54,7 @@ export function Home() {
           A <strong>T4 English</strong> é uma escola focada no desenvolvimento real da fluência em inglês. Trabalhamos com métricas claras de frequência, acompanhamento individualizado e uma matriz curricular sólida baseada em fonética e estruturação prática da língua.
         </p>
       </section>
-
-      {/* Missão, Visão e Valores */}
+           {/* Missão, Visão e Valores */}
       <section id="missao" style={{ backgroundColor: '#F4EFE6', padding: '4.5rem 2rem', borderTop: '1px solid #E2D7C5', borderBottom: '1px solid #E2D7C5' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem' }}>
           
@@ -91,7 +102,7 @@ export function Home() {
         <img 
           src="/logo.png" 
           alt="T4 English" 
-          style={{ height: '85px', objectFit: 'contain', display: 'block', mixBlendMode: 'multiply' }} 
+          style={{ height: '115px', objectFit: 'contain', display: 'block', mixBlendMode: 'multiply' }} 
         />
       </div>
       <p style={{ color: '#E2D7C5', fontSize: '0.95rem', lineHeight: '1.6', maxWidth: '300px' }}>
@@ -133,6 +144,7 @@ export function Home() {
     </div>
 
   </div>
+  
 
   {/* Linha Divisória & Copyright */}
   <div style={{ 
