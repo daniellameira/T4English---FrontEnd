@@ -6,6 +6,7 @@ import { ProfessorDashboard } from './pages/ProfessorDashboard';
 import { StudentDashboard } from './pages/StudentDashboard';
 import { LessonView } from './pages/LessonView';
 import { AppLayout } from './components/AppLayout';
+import { StudentManagement } from './pages/StudentManagement';
 import type { JSX } from 'react/jsx-runtime';
 
 function PrivateRoute({ children }: { children: JSX.Element }) {
@@ -44,6 +45,14 @@ export function App() {
             element={
               <PrivateRoute>
                 <LessonView />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/students"
+            element={
+              <PrivateRoute>
+                <StudentManagement />
               </PrivateRoute>
             }
           />

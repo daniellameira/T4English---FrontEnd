@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { LogOut, LayoutDashboard, Users, FileText } from 'lucide-react';
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
@@ -14,49 +15,72 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
   const isProfessor = user?.role?.toUpperCase() === 'PROFESSOR';
 
+  // Função auxiliar para aplicar os estilos do botão ativo vs inativo
+  const getLinkStyle = (path: string) => {
+    const isActive = location.pathname === path;
+
+    return {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.75rem',
+      color: '#181818',
+      padding: '0.75rem',
+      borderRadius: '8px',
+      textDecoration: 'none',
+      fontWeight: 'bold',
+      fontFamily: 'var(--font-subtitle)',
+      backgroundColor: isActive ? '#FFFFFF' : 'transparent',
+      border: isActive ? '2px solid #181818' : '2px solid transparent',
+      boxShadow: isActive ? '2px 2px 0px #181818' : 'none',
+      transition: 'all 0.2s ease'
+    };
+  };
+
+  const dashboardPath = isProfessor ? '/dashboard/professor' : '/dashboard/student';
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-light)' }}>
       {/* Sidebar Lateral */}
-      <aside style={{ width: '250px', backgroundColor: 'var(--text-main)', color: 'var(--white)', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #2a2a2a' }}>
-          <img src="/logo.png" alt="T4 English" style={{ height: '85px' }} />
+      <aside style={{ 
+        width: '260px', 
+        backgroundColor: '#F4EFE6', 
+        color: '#181818', 
+        display: 'flex', 
+        flexDirection: 'column',
+        borderRight: '2px solid #181818'
+      }}>
+        {/* Topo da Logo */}
+        <div style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '2px solid #181818', backgroundColor: '#FFFFFF' }}>
+          <img src="/logo.png" alt="T4 English" style={{ height: '70px', objectFit: 'contain', mixBlendMode: 'multiply' }} />
         </div>
 
-        <nav style={{ flex: 1, padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <Link
-            to={isProfessor ? '/dashboard/professor' : '/dashboard/student'}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#F4EFE6', padding: '0.75rem', borderRadius: '6px', textDecoration: 'none', fontWeight: 500 }}
-          >
-            <LayoutDashboard size={18} color="#E05A67" /> Dashboard
+        {/* Links de Navegação Dinâmicos */}
+        <nav style={{ flex: 1, padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <Link to={dashboardPath} style={getLinkStyle(dashboardPath)}>
+            <LayoutDashboard size={20} color="#E05A67" /> Dashboard
           </Link>
 
           {isProfessor && (
-            <Link
-              to="/students"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#F4EFE6', padding: '0.75rem', borderRadius: '6px', textDecoration: 'none', fontWeight: 500 }}
-            >
-              <Users size={18} color="#E05A67" /> Gerenciar Alunos
+            <Link to="/students" style={getLinkStyle('/students')}>
+              <Users size={20} color="#E05A67" /> Gerenciar Alunos
             </Link>
           )}
 
-          <Link
-            to="/assignments"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#F4EFE6', padding: '0.75rem', borderRadius: '6px', textDecoration: 'none', fontWeight: 500 }}
-          >
-            <FileText size={18} color="#E05A67" /> Tarefas
+          <Link to="/assignments" style={getLinkStyle('/assignments')}>
+            <FileText size={20} color="#E05A67" /> Tarefas
           </Link>
         </nav>
 
-        {/* Perfil & Logout */}
-        <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid #2a2a2a', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        {/* Perfil do Utilizador & Sair */}
+        <div style={{ padding: '1rem 1.25rem', borderTop: '2px solid #181818', display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFFFFF' }}>
           <div>
-            <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--white)' }}>{user?.name}</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--bg-bege-dark)' }}>{user?.role}</div>
+            <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#181818' }}>{user?.name || 'Usuário'}</div>
+            <div style={{ fontSize: '0.75rem', color: '#555555' }}>{user?.role || 'Professor'}</div>
           </div>
           <button
             onClick={handleLogout}
             title="Sair"
-            style={{ backgroundColor: 'transparent', border: 'none', color: 'var(--brand-red)', cursor: 'pointer', padding: '0.25rem' }}
+            style={{ backgroundColor: 'transparent', border: 'none', color: '#E05A67', cursor: 'pointer', padding: '0.25rem' }}
           >
             <LogOut size={20} />
           </button>
