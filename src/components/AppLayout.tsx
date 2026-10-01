@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut, LayoutDashboard, Users, FileText } from 'lucide-react';
+import { LogOut, LayoutDashboard, Users, FileText, PlayCircle } from 'lucide-react';
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
@@ -41,11 +41,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-light)' }}>
       {/* Sidebar Lateral */}
-      <aside style={{ 
-        width: '260px', 
-        backgroundColor: '#F4EFE6', 
-        color: '#181818', 
-        display: 'flex', 
+      <aside style={{
+        width: '260px',
+        backgroundColor: '#F4EFE6',
+        color: '#181818',
+        display: 'flex',
         flexDirection: 'column',
         borderRight: '2px solid #181818'
       }}>
@@ -65,11 +65,14 @@ export function AppLayout({ children }: { children: ReactNode }) {
               <Users size={20} color="#E05A67" /> Gerenciar Alunos
             </Link>
           )}
-
           <Link to="/assignments" style={getLinkStyle('/assignments')}>
             <FileText size={20} color="#E05A67" /> Tarefas
           </Link>
+          <Link to="/dashboard/student/ipa" style={getLinkStyle('/dashboard/student/ipa')}>
+            <PlayCircle size={20} color="#E05A67" /> Tabela IPA
+          </Link>
         </nav>
+
 
         {/* Perfil do Utilizador & Sair */}
         <div style={{ padding: '1rem 1.25rem', borderTop: '2px solid #181818', display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFFFFF' }}>

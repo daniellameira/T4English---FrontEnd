@@ -41,13 +41,13 @@ export function StudentDashboard() {
     return <div style={{ color: 'var(--text-main)', fontWeight: 'bold' }}>Carregando sua trilha...</div>;
   }
 
-  const progressPercentage = data?.totalLessonsCount 
-    ? Math.round((data.completedLessonsCount / data.totalLessonsCount) * 100) 
+  const progressPercentage = data?.totalLessonsCount
+    ? Math.round((data.completedLessonsCount / data.totalLessonsCount) * 100)
     : 0;
 
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-      
+
       {/* Cabeçalho de Boas-Vindas */}
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '1.8rem', color: 'var(--text-main)', marginBottom: '0.5rem' }}>
@@ -58,9 +58,49 @@ export function StudentDashboard() {
         </p>
       </div>
 
+      <section
+        style={{
+          backgroundColor: 'var(--white)',
+          border: '1px solid var(--bg-bege-dark)',
+          borderRadius: '12px',
+          padding: '1.25rem',
+          marginBottom: '2rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '1rem',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div>
+          <h2 style={{ fontSize: '1.2rem', marginBottom: '0.4rem' }}>
+            Pratique sua pronúncia
+          </h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+            Explore os sons IPA e ouça palavras de exemplo.
+          </p>
+        </div>
+        <Link
+          to="/dashboard/student/ipa"
+          style={{
+            backgroundColor: 'var(--brand-red)',
+            color: 'var(--white)',
+            padding: '0.7rem 1rem',
+            borderRadius: '8px',
+            border: '2px solid var(--text-main)',
+            boxShadow: '2px 2px 0 var(--text-main)',
+            textDecoration: 'none',
+            fontWeight: 'bold',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Abrir tabela IPA
+        </Link>
+      </section>
+
       {/* Cards de Desempenho do Aluno */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
-        
+
         {/* Card Frequência */}
         <div style={{ backgroundColor: 'var(--white)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--bg-bege-dark)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -113,13 +153,13 @@ export function StudentDashboard() {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ 
-                  backgroundColor: lesson.isCompleted ? '#DCFCE7' : 'var(--bg-bege)', 
-                  padding: '0.75rem', 
-                  borderRadius: '50%', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center' 
+                <div style={{
+                  backgroundColor: lesson.isCompleted ? '#DCFCE7' : 'var(--bg-bege)',
+                  padding: '0.75rem',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
                 }}>
                   {lesson.isCompleted ? (
                     <CheckCircle size={22} color="#166534" />

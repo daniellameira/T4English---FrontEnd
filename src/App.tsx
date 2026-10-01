@@ -4,9 +4,11 @@ import { Home } from './pages/Home';
 import { Login } from './pages/Login';
 import { ProfessorDashboard } from './pages/ProfessorDashboard';
 import { StudentDashboard } from './pages/StudentDashboard';
+import { StudentIpaPage } from './pages/StudentIpaPage';
 import { LessonView } from './pages/LessonView';
 import { AppLayout } from './components/AppLayout';
 import { StudentManagement } from './pages/StudentManagement';
+import { Assignments } from './pages/Assignments';
 import type { JSX } from 'react/jsx-runtime';
 
 function PrivateRoute({ children }: { children: JSX.Element }) {
@@ -41,6 +43,14 @@ export function App() {
             }
           />
           <Route
+            path="/dashboard/student/ipa"
+            element={
+              <PrivateRoute>
+                <StudentIpaPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
             path="/lesson/:id"
             element={
               <PrivateRoute>
@@ -53,6 +63,14 @@ export function App() {
             element={
               <PrivateRoute>
                 <StudentManagement />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/assignments"
+            element={
+              <PrivateRoute>
+                <Assignments />
               </PrivateRoute>
             }
           />
