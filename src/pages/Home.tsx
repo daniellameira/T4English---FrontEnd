@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { IpaChart } from '../components/IpaChart';
-import { Target, Heart, Eye, Mail, Phone, MapPin, ArrowRight, Volume2, Sparkles, BookOpen, GraduationCap, Music, Lightbulb, Globe, Pencil, Ruler, Mic, Brain, Compass, Star, Smile, Bookmark, Compass as CompassIcon, Award } from 'lucide-react';
+import { Target, Heart, Eye, Mail, Phone, MapPin, ArrowRight, Volume2, Sparkles, BookOpen, GraduationCap, Music, Lightbulb, Globe, Pencil, Ruler, Mic, Brain, Compass, Star, Smile, Bookmark, Award } from 'lucide-react';
 
 export function Home() {
   const { user, isAuthenticated } = useAuth();

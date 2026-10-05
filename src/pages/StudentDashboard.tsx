@@ -1,35 +1,26 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
-import { BookOpen, CheckCircle, PlayCircle, Award } from 'lucide-react';
-
-interface LessonProgress {
-  id: string;
-  title: string;
-  description: string;
-  isCompleted: boolean;
-  canvaEmbedUrl?: string;
-}
-
-interface StudentDashboardData {
-  subLevelName: string;
-  attendancePercentage: number;
-  completedLessonsCount: number;
-  totalLessonsCount: number;
-  lessons: LessonProgress[];
-}
+import type { StudentDashboardData } from '../types/dashboard';
+import { studentDashboardMock } from '../data/dashboardMocks';
+import { DashboardMetricCard } from '../components/DashboardMetricCard';
+import { BookOpen, CheckCircle, PlayCircle, Award, FileCheck, CircleAlert } from 'lucide-react';
 
 export function StudentDashboard() {
-  const [data, setData] = useState<StudentDashboardData | null>(null);
+  const [data, setData] = useState<StudentDashboardData>(studentDashboardMock);
   const [loading, setLoading] = useState(true);
+  const [usingMock, setUsingMock] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     async function loadDashboard() {
       try {
         const response = await api.get<StudentDashboardData>('/Dashboard/student');
         setData(response.data);
+        setUsingMock(false);
       } catch (err) {
         console.error('Erro ao carregar dashboard do aluno:', err);
+        setLoadError(true);
       } finally {
         setLoading(false);
       }
@@ -37,13 +28,12 @@ export function StudentDashboard() {
     loadDashboard();
   }, []);
 
-  if (loading) {
-    return <div style={{ color: 'var(--text-main)', fontWeight: 'bold' }}>Carregando sua trilha...</div>;
-  }
-
-  const progressPercentage = data?.totalLessonsCount
+  const progressPercentage = data.totalLessonsCount
     ? Math.round((data.completedLessonsCount / data.totalLessonsCount) * 100)
     : 0;
+  const assignmentProgress = data.totalAssignmentsCount
+    ? Math.round(((data.completedAssignmentsCount ?? 0) / data.totalAssignmentsCount) * 100)
+    : undefined;
 
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
@@ -51,11 +41,24 @@ export function StudentDashboard() {
       {/* Cabeçalho de Boas-Vindas */}
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '1.8rem', color: 'var(--text-main)', marginBottom: '0.5rem' }}>
-          Sua Trilha: {data?.subLevelName ?? 'Basic Level'}
+          Sua Trilha: {data.subLevelName}
         </h1>
         <p style={{ color: 'var(--text-muted)' }}>
           Acompanhe seu progresso e acesse suas aulas diárias.
         </p>
+      </div>
+
+      <div className={`dashboard-data-notice${loadError ? ' dashboard-data-notice--error' : ''}`} role={loadError ? 'alert' : 'status'}>
+        {loadError ? <CircleAlert size={18} /> : <FileCheck size={18} />}
+        <span>
+          {usingMock
+            ? loadError
+              ? 'Não foi possível carregar os dados reais. Exibindo métricas demonstrativas.'
+              : loading
+                ? 'Carregando seus dados reais; as métricas demonstrativas aparecem enquanto isso.'
+                : 'Métricas demonstrativas: aguardando conexão com os serviços reais.'
+            : 'Métricas atualizadas com os dados da plataforma.'}
+        </span>
       </div>
 
       <section
@@ -98,38 +101,36 @@ export function StudentDashboard() {
         </Link>
       </section>
 
-      {/* Cards de Desempenho do Aluno */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
-
-        {/* Card Frequência */}
-        <div style={{ backgroundColor: 'var(--white)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--bg-bege-dark)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Frequência Geral</span>
-            <Award size={24} color="var(--brand-red)" />
-          </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: (data?.attendancePercentage ?? 0) < 75 ? '#DC2626' : '#166534' }}>
-            {data?.attendancePercentage ?? 0}%
-          </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-            Meta mínima recomendada: 75%
-          </div>
-        </div>
-
-        {/* Card Progresso do Curso */}
-        <div style={{ backgroundColor: 'var(--white)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--bg-bege-dark)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Progresso do Nível</span>
-            <BookOpen size={24} color="var(--brand-red)" />
-          </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--text-main)' }}>
-            {progressPercentage}%
-          </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-            {data?.completedLessonsCount} de {data?.totalLessonsCount} lições concluídas
-          </div>
-        </div>
-
-      </div>
+      <section className="dashboard-metrics" aria-label="Suas métricas de aprendizagem">
+        <DashboardMetricCard
+          label="Frequência geral"
+          value={`${data.attendancePercentage}%`}
+          description="Meta mínima recomendada: 75%."
+          icon={Award}
+          tone={data.attendancePercentage < 75 ? 'red' : 'green'}
+          progress={data.attendancePercentage}
+        />
+        <DashboardMetricCard
+          label="Lições concluídas"
+          value={`${progressPercentage}%`}
+          description={`${data.completedLessonsCount} de ${data.totalLessonsCount} lições concluídas.`}
+          icon={BookOpen}
+          tone="yellow"
+          progress={progressPercentage}
+        />
+        <DashboardMetricCard
+          label="Tarefas concluídas"
+          value={assignmentProgress === undefined ? '—' : `${assignmentProgress}%`}
+          description={
+            data.totalAssignmentsCount === undefined
+              ? 'Aguardando este dado no serviço do dashboard.'
+              : `${data.completedAssignmentsCount ?? 0} de ${data.totalAssignmentsCount} tarefas entregues.`
+          }
+          icon={FileCheck}
+          tone="red"
+          progress={assignmentProgress}
+        />
+      </section>
 
       {/* Lista das Lições da Trilha */}
       <h2 style={{ fontSize: '1.3rem', marginBottom: '1.25rem', color: 'var(--text-main)' }}>
@@ -137,7 +138,7 @@ export function StudentDashboard() {
       </h2>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        {data?.lessons && data.lessons.length > 0 ? (
+        {data.lessons.length > 0 ? (
           data.lessons.map((lesson, index) => (
             <div
               key={lesson.id}

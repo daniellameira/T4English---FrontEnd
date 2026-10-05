@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
+import { isAxiosError } from 'axios';
 import { Users, UserPlus, Search, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 
 interface Student {
@@ -7,12 +8,20 @@ interface Student {
   name: string;
   email: string;
   subLevelName?: string;
+  subLevel?: { name: string };
+  levelName?: string;
   attendancePercentage?: number;
 }
 
 interface LevelOption {
   id: string;
   name: string;
+  subLevels?: LevelOption[];
+}
+
+interface StudentValidationError {
+  message?: string;
+  errors?: Record<string, string[]>;
 }
 
 export function StudentManagement() {
@@ -39,20 +48,20 @@ export function StudentManagement() {
     setRefreshing(true);
     try {
       // 1. Busca Alunos
-      const studentsRes = await api.get('/Student').catch(() => null);
+      const studentsRes = await api.get<Student[]>('/Student').catch(() => null);
       if (studentsRes?.data) {
         setStudents(studentsRes.data);
       }
 
       // 2. Busca Níveis e Subníveis reais do banco
-      const levelsRes = await api.get('/Level').catch(() => null);
+      const levelsRes = await api.get<LevelOption[]>('/Level').catch(() => null);
 
       if (levelsRes?.data && Array.isArray(levelsRes.data)) {
         const extracted: LevelOption[] = [];
 
-        levelsRes.data.forEach((lvl: any) => {
+        levelsRes.data.forEach((lvl) => {
           if (lvl.subLevels && Array.isArray(lvl.subLevels) && lvl.subLevels.length > 0) {
-            lvl.subLevels.forEach((sub: any) => {
+            lvl.subLevels.forEach((sub) => {
               extracted.push({ id: sub.id, name: `${lvl.name} - ${sub.name}` });
             });
           } else {
@@ -95,16 +104,19 @@ export function StudentManagement() {
       setSubLevelId('');
       setIsModalOpen(false);
       loadData();
-    } catch (err: any) {
-      console.error('Erro retornado pela API:', err.response?.data);
+    } catch (err: unknown) {
+      const responseData = isAxiosError<StudentValidationError>(err)
+        ? err.response?.data
+        : undefined;
+      console.error('Erro retornado pela API:', responseData);
 
       // Captura erros de validação do .NET (ModelState/ValidationProblemDetails)
-      if (err.response?.data?.errors) {
-        const messages = Object.values(err.response.data.errors).flat().join(' | ');
+      if (responseData?.errors) {
+        const messages = Object.values(responseData.errors).flat().join(' | ');
         setFormError(messages);
-      } else if (err.response?.data?.message) {
-        setFormError(err.response.data.message);
-      } else if (typeof err.response?.data === 'string') {
+      } else if (responseData?.message) {
+        setFormError(responseData.message);
+      } else if (isAxiosError(err) && typeof err.response?.data === 'string') {
         setFormError(err.response.data);
       } else {
         setFormError('Erro ao cadastrar aluno. Verifique o console do navegador.');
@@ -223,7 +235,7 @@ export function StudentManagement() {
                     <td style={{ padding: '0.85rem 0.75rem', color: 'var(--text-muted)' }}>{student.email}</td>
                     <td style={{ padding: '0.85rem 0.75rem' }}>
                       <span style={{ backgroundColor: 'var(--bg-bege)', border: '1px solid #181818', padding: '0.2rem 0.6rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold' }}>
-                        {student.subLevelName || (student as any).subLevel?.name || (student as any).levelName || 'Básico - First Step'}
+                        {student.subLevelName || student.subLevel?.name || student.levelName || 'Básico - First Step'}
                       </span>
                     </td>
                     <td style={{ padding: '0.85rem 0.75rem' }}>

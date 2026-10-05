@@ -1,13 +1,11 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
+import { isAxiosError } from 'axios';
 import {
-  FileText,
   PlusCircle,
   CheckCircle,
-  Clock,
   Calendar,
-  AlertCircle,
   Edit3,
   Trash2,
   X,
@@ -30,6 +28,10 @@ interface SubLevelOption {
 interface LessonOption {
   id: string;
   title: string;
+}
+
+interface AssignmentErrorResponse {
+  message?: string;
 }
 
 export function Assignments() {
@@ -102,9 +104,6 @@ export function Assignments() {
   // 2. Carregar lições do filtro principal
   useEffect(() => {
     if (!filterSubLevelId) {
-      setLessons([]);
-      setFilterLessonId('');
-      setAssignments([]);
       return;
     }
 
@@ -130,7 +129,6 @@ export function Assignments() {
   // 3. Carregar tarefas da lição selecionada no filtro principal
   useEffect(() => {
     if (!filterLessonId) {
-      setAssignments([]);
       return;
     }
 
@@ -143,7 +141,6 @@ export function Assignments() {
   // 4. Carregar lições para o Modal (Criação/Edição)
   useEffect(() => {
     if (!modalSubLevelId) {
-      setModalLessons([]);
       return;
     }
 
@@ -229,10 +226,13 @@ export function Assignments() {
         );
         setAssignments(res.data || []);
       }
-    } catch (err: any) {
-      console.error('Erro ao salvar tarefa:', err.response);
+    } catch (err: unknown) {
+      console.error('Erro ao salvar tarefa:', err);
+      const errorMessage = isAxiosError<AssignmentErrorResponse>(err)
+        ? err.response?.data?.message
+        : undefined;
       setFormError(
-        err.response?.data?.message || 'Erro ao salvar tarefa.'
+        errorMessage || 'Erro ao salvar tarefa.'
       );
     }
   };
@@ -336,7 +336,12 @@ export function Assignments() {
 
           <select
             value={filterSubLevelId}
-            onChange={(e) => setFilterSubLevelId(e.target.value)}
+            onChange={(e) => {
+              setFilterSubLevelId(e.target.value);
+              setFilterLessonId('');
+              setLessons([]);
+              setAssignments([]);
+            }}
             style={{
               width: '100%',
               padding: '0.6rem',
@@ -709,7 +714,11 @@ export function Assignments() {
 
                 <select
                   value={modalSubLevelId}
-                  onChange={(e) => setModalSubLevelId(e.target.value)}
+                  onChange={(e) => {
+                    setModalSubLevelId(e.target.value);
+                    setModalLessonId('');
+                    setModalLessons([]);
+                  }}
                   style={{
                     width: '100%',
                     padding: '0.6rem',
