@@ -5,7 +5,7 @@ interface DashboardMetricCardProps {
   value: string;
   description: string;
   icon: LucideIcon;
-  tone?: 'red' | 'beige' | 'green' | 'yellow';
+  tone?: 'red' | 'beige' | 'green' | 'yellow'| 'black' ;
   progress?: number;
 }
 
@@ -18,6 +18,7 @@ export function DashboardMetricCard({
   progress,
 }: DashboardMetricCardProps) {
   const boundedProgress = progress === undefined ? undefined : Math.min(100, Math.max(0, progress));
+  const barColor = boundedProgress !== undefined && boundedProgress >= 75 ? '#181818' : '#E05A67';
 
   return (
     <article className="doodle-card dashboard-metric-card">
@@ -38,7 +39,7 @@ export function DashboardMetricCard({
           aria-valuemax={100}
           aria-valuenow={boundedProgress}
         >
-          <span style={{ width: `${boundedProgress}%` }} />
+          <span style={{ width: `${boundedProgress}%`, backgroundColor: barColor }} />
         </div>
       )}
     </article>

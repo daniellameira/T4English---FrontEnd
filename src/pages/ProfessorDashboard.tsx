@@ -3,7 +3,7 @@ import { api } from '../api/client';
 import type { ProfessorDashboardApiResponse, ProfessorDashboardData } from '../types/dashboard';
 import { professorDashboardMock } from '../data/dashboardMocks';
 import { DashboardMetricCard } from '../components/DashboardMetricCard';
-import { Users, AlertTriangle, FileCheck, Search, BookOpen, CircleAlert } from 'lucide-react';
+import { Users, AlertTriangle, ShieldCheck, FileCheck, Search, BookOpen, CircleAlert } from 'lucide-react';
 
 function isProfessorDashboardApiResponse(value: unknown): value is ProfessorDashboardApiResponse {
   if (typeof value !== 'object' || value === null) {
@@ -74,6 +74,7 @@ export function ProfessorDashboard() {
   const averageAttendance = students.length
     ? Math.round(students.reduce((total, student) => total + student.attendancePercentage, 0) / students.length)
     : null;
+  const studentsAtRisk = data.studentsAtRiskCount || 0;
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
@@ -110,9 +111,9 @@ export function ProfessorDashboard() {
         <DashboardMetricCard
           label="Frequência média"
           value={averageAttendance === null ? '—' : `${averageAttendance}%`}
-          description={`${data.studentsAtRiskCount} aluno(s) abaixo da frequência recomendada de 75%.`}
-          icon={AlertTriangle}
-          tone={averageAttendance !== null && averageAttendance < 75 ? 'red' : 'green'}
+          description={`${studentsAtRisk} aluno(s) abaixo da frequência recomendada de 75%.`}
+          icon={studentsAtRisk > 0 ? AlertTriangle : ShieldCheck}
+          tone={studentsAtRisk > 0 ? 'red' : 'green'}
           progress={averageAttendance ?? undefined}
         />
         <DashboardMetricCard

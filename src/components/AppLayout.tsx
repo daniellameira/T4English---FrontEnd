@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut, LayoutDashboard, Users, FileText, PlayCircle } from 'lucide-react';
+// Importamos o Ã­cone Presentation
+import { LogOut, LayoutDashboard, Users, FileText, PlayCircle, Presentation } from 'lucide-react';
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
@@ -15,9 +16,8 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
   const isProfessor = user?.role?.toUpperCase() === 'PROFESSOR';
 
-  // Função auxiliar para aplicar os estilos do botão ativo vs inativo
   const getLinkStyle = (path: string) => {
-    const isActive = location.pathname === path;
+    const isActive = location.pathname.startsWith(path); // Alterado para 'startsWith' para manter ativo em sub-rotas
 
     return {
       display: 'flex',
@@ -54,30 +54,39 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <img src="/logo.png" alt="T4 English" style={{ height: '70px', objectFit: 'contain', mixBlendMode: 'multiply' }} />
         </div>
 
-        {/* Links de Navegação Dinâmicos */}
+        {/* Links de NavegaÃ§Ã£o DinÃ¢micos */}
         <nav style={{ flex: 1, padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <Link to={dashboardPath} style={getLinkStyle(dashboardPath)}>
             <LayoutDashboard size={20} color="#E05A67" /> Dashboard
           </Link>
 
           {isProfessor && (
-            <Link to="/students" style={getLinkStyle('/students')}>
-              <Users size={20} color="#E05A67" /> Gerenciar Alunos
-            </Link>
+            <>
+              <Link to="/students" style={getLinkStyle('/students')}>
+                <Users size={20} color="#E05A67" /> Gerenciar Alunos
+              </Link>
+              {/* NOVO LINK DO PROFESSOR */}
+              <Link to="/lesson-materials" style={getLinkStyle('/lesson-materials')}>
+                <Presentation size={20} color="#E05A67" /> Materiais e Slides
+              </Link>
+            </>
           )}
+
           <Link to="/assignments" style={getLinkStyle('/assignments')}>
             <FileText size={20} color="#E05A67" /> Tarefas
           </Link>
-          <Link to="/dashboard/student/ipa" style={getLinkStyle('/dashboard/student/ipa')}>
-            <PlayCircle size={20} color="#E05A67" /> Tabela IPA
-          </Link>
-        </nav>
 
+          {!isProfessor && (
+             <Link to="/dashboard/student/ipa" style={getLinkStyle('/dashboard/student/ipa')}>
+               <PlayCircle size={20} color="#E05A67" /> Tabela IPA
+             </Link>
+          )}
+        </nav>
 
         {/* Perfil do Utilizador & Sair */}
         <div style={{ padding: '1rem 1.25rem', borderTop: '2px solid #181818', display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFFFFF' }}>
           <div>
-            <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#181818' }}>{user?.name || 'Usuário'}</div>
+            <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#181818' }}>{user?.name || 'UsuÃ¡rio'}</div>
             <div style={{ fontSize: '0.75rem', color: '#555555' }}>{user?.role || 'Professor'}</div>
           </div>
           <button
@@ -90,7 +99,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      {/* Conteúdo Principal */}
+      {/* ConteÃºdo Principal */}
       <main style={{ flex: 1, padding: '2rem', overflowY: 'auto' }}>
         {children}
       </main>

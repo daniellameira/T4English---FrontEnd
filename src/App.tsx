@@ -8,8 +8,10 @@ import { StudentIpaPage } from './pages/StudentIpaPage';
 import { LessonView } from './pages/LessonView';
 import { AppLayout } from './components/AppLayout';
 import { StudentManagement } from './pages/StudentManagement';
+import { LessonViewer } from './pages/LessonViewer';
 import { Assignments } from './pages/Assignments';
 import type { JSX } from 'react/jsx-runtime';
+import { LessonMaterialsManager } from './pages/LessonMaterialsManager';
 
 function PrivateRoute({ children }: { children: JSX.Element }) {
   const { isAuthenticated } = useAuth();
@@ -21,59 +23,24 @@ export function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* Rota Pública Inicial */}
+          {/* Rota PÃºblica Inicial */}
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
 
           {/* Rotas Protegidas */}
-          <Route
-            path="/dashboard/professor"
-            element={
-              <PrivateRoute>
-                <ProfessorDashboard />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/dashboard/student"
-            element={
-              <PrivateRoute>
-                <StudentDashboard />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/dashboard/student/ipa"
-            element={
-              <PrivateRoute>
-                <StudentIpaPage />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/lesson/:id"
-            element={
-              <PrivateRoute>
-                <LessonView />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/students"
-            element={
-              <PrivateRoute>
-                <StudentManagement />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/assignments"
-            element={
-              <PrivateRoute>
-                <Assignments />
-              </PrivateRoute>
-            }
-          />
+          <Route path="/dashboard/professor" element={<PrivateRoute><ProfessorDashboard /></PrivateRoute>} />
+          <Route path="/dashboard/student" element={<PrivateRoute><StudentDashboard /></PrivateRoute>} />
+          <Route path="/dashboard/student/ipa" element={<PrivateRoute><StudentIpaPage /></PrivateRoute>} />
+          <Route path="/students" element={<PrivateRoute><StudentManagement /></PrivateRoute>} />
+          <Route path="/assignments" element={<PrivateRoute><Assignments /></PrivateRoute>} />
+
+          {/* ROTAS CORRIGIDAS: Agora estÃ£o dentro do PrivateRoute para exibir o Menu Lateral */}
+          <Route path="/lesson/:lessonId" element={<PrivateRoute><LessonViewer /></PrivateRoute>} />
+          <Route path="/lesson-materials" element={<PrivateRoute><LessonMaterialsManager /></PrivateRoute>} />
+
+          {/* Mantive a sua LessonView original caso ainda a use, mas tambÃ©m deve estar protegida */}
+          <Route path="/lesson-old/:id" element={<PrivateRoute><LessonView /></PrivateRoute>} />
+
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </BrowserRouter>

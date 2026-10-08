@@ -41,6 +41,7 @@ export interface LessonProgress {
 }
 
 export interface StudentDashboardData {
+  subLevelId?: string | null;
   subLevelName: string;
   attendancePercentage: number;
   completedLessonsCount: number;

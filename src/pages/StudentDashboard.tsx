@@ -1,13 +1,56 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import type { StudentDashboardData } from '../types/dashboard';
 import { studentDashboardMock } from '../data/dashboardMocks';
 import { DashboardMetricCard } from '../components/DashboardMetricCard';
-import { BookOpen, CheckCircle, PlayCircle, Award, FileCheck, CircleAlert } from 'lucide-react';
+import { BookDashed, BookOpen, CheckCircle, PlayCircle, Award, FileCheck, CircleAlert } from 'lucide-react';
+
+function isLessonProgress(value: unknown): value is StudentDashboardData['lessons'][number] {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const lesson = value as Partial<StudentDashboardData['lessons'][number]>;
+  return (
+    typeof lesson.id === 'string' &&
+    typeof lesson.title === 'string' &&
+    typeof lesson.description === 'string' &&
+    typeof lesson.isCompleted === 'boolean' &&
+    (lesson.canvaEmbedUrl === undefined || typeof lesson.canvaEmbedUrl === 'string')
+  );
+}
+
+function isStudentDashboardData(value: unknown): value is StudentDashboardData {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const dashboard = value as Partial<StudentDashboardData>;
+  return (
+    typeof dashboard.subLevelName === 'string' &&
+    (dashboard.subLevelId === undefined ||
+      dashboard.subLevelId === null ||
+      typeof dashboard.subLevelId === 'string') &&
+    typeof dashboard.attendancePercentage === 'number' &&
+    typeof dashboard.completedLessonsCount === 'number' &&
+    typeof dashboard.totalLessonsCount === 'number' &&
+    (dashboard.completedAssignmentsCount === undefined ||
+      typeof dashboard.completedAssignmentsCount === 'number') &&
+    (dashboard.totalAssignmentsCount === undefined ||
+      typeof dashboard.totalAssignmentsCount === 'number') &&
+    (dashboard.lessons === undefined ||
+      (Array.isArray(dashboard.lessons) && dashboard.lessons.every(isLessonProgress)))
+  );
+}
 
 export function StudentDashboard() {
+  const navigate = useNavigate();
   const [data, setData] = useState<StudentDashboardData>(studentDashboardMock);
+  const [subLevelLessons, setSubLevelLessons] = useState<{
+    subLevelId: string;
+    lessons: StudentDashboardData['lessons'];
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [usingMock, setUsingMock] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -15,8 +58,11 @@ export function StudentDashboard() {
   useEffect(() => {
     async function loadDashboard() {
       try {
-        const response = await api.get<StudentDashboardData>('/Dashboard/student');
-        setData(response.data);
+        const response = await api.get<unknown>('/Dashboard/student');
+        if (!isStudentDashboardData(response.data)) {
+          throw new Error('A resposta do dashboard do aluno tem um formato inválido.');
+        }
+        setData({ ...response.data, lessons: response.data.lessons ?? [] });
         setUsingMock(false);
       } catch (err) {
         console.error('Erro ao carregar dashboard do aluno:', err);
@@ -28,12 +74,63 @@ export function StudentDashboard() {
     loadDashboard();
   }, []);
 
+  useEffect(() => {
+    const subLevelId = data.subLevelId;
+    if (!subLevelId) {
+      return;
+    }
+
+    let cancelled = false;
+    api.get<unknown>(`/Lesson/sublevel/${subLevelId}`)
+      .then((response) => {
+        if (!Array.isArray(response.data)) {
+          throw new Error('A resposta das lições do subnível tem um formato inválido.');
+        }
+
+        const loadedLessons = response.data.map((value: unknown) => {
+          if (typeof value !== 'object' || value === null) {
+            throw new Error('A resposta contém uma lição inválida.');
+          }
+
+          const lesson = value as Record<string, unknown>;
+          if (typeof lesson.id !== 'string' || typeof lesson.title !== 'string') {
+            throw new Error('A resposta contém uma lição sem identificador ou título.');
+          }
+
+          return {
+            id: lesson.id,
+            title: lesson.title,
+            description: typeof lesson.description === 'string' ? lesson.description : '',
+            isCompleted: typeof lesson.isCompleted === 'boolean' ? lesson.isCompleted : false,
+            ...(typeof lesson.canvaEmbedUrl === 'string' ? { canvaEmbedUrl: lesson.canvaEmbedUrl } : {}),
+          };
+        });
+
+        if (!cancelled) {
+          setSubLevelLessons({ subLevelId, lessons: loadedLessons });
+        }
+      })
+      .catch((err: unknown) => {
+        console.error('Erro ao carregar lições:', err);
+        if (!cancelled) {
+          setSubLevelLessons({ subLevelId, lessons: [] });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [data.subLevelId]);
+
   const progressPercentage = data.totalLessonsCount
     ? Math.round((data.completedLessonsCount / data.totalLessonsCount) * 100)
     : 0;
   const assignmentProgress = data.totalAssignmentsCount
     ? Math.round(((data.completedAssignmentsCount ?? 0) / data.totalAssignmentsCount) * 100)
     : undefined;
+  const lessons = subLevelLessons && subLevelLessons.subLevelId === data.subLevelId
+    ? subLevelLessons.lessons
+    : (Array.isArray(data.lessons) ? data.lessons : []);
 
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
@@ -127,7 +224,7 @@ export function StudentDashboard() {
               : `${data.completedAssignmentsCount ?? 0} de ${data.totalAssignmentsCount} tarefas entregues.`
           }
           icon={FileCheck}
-          tone="red"
+          tone="black"
           progress={assignmentProgress}
         />
       </section>
@@ -138,8 +235,8 @@ export function StudentDashboard() {
       </h2>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        {data.lessons.length > 0 ? (
-          data.lessons.map((lesson, index) => (
+        {lessons.length > 0 ? (
+          lessons.map((lesson, index) => (
             <div
               key={lesson.id}
               style={{
@@ -182,8 +279,9 @@ export function StudentDashboard() {
               </div>
 
               <div>
-                <Link
-                  to={`/lesson/${lesson.id}`}
+                <button
+                  type="button"
+                  onClick={() => navigate(`/lesson/${lesson.id}`)}
                   style={{
                     backgroundColor: lesson.isCompleted ? 'var(--bg-bege)' : 'var(--brand-red)',
                     color: lesson.isCompleted ? 'var(--text-main)' : 'var(--white)',
@@ -194,18 +292,23 @@ export function StudentDashboard() {
                     fontSize: '0.875rem',
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '0.5rem'
+                    gap: '0.5rem',
+                    border: 'none',
+                    cursor: 'pointer'
                   }}
                 >
                   <PlayCircle size={18} />
                   {lesson.isCompleted ? 'Revisar' : 'Estudar'}
-                </Link>
+                </button>
               </div>
             </div>
           ))
         ) : (
-          <div style={{ padding: '2rem', textAlign: 'center', backgroundColor: 'var(--white)', borderRadius: '10px', color: 'var(--text-muted)' }}>
-            Nenhuma lição encontrada para o seu nível atual.
+          <div className="doodle-card" style={{ padding: '4rem 2rem', textAlign: 'center', backgroundColor: '#FFFFFF' }}>
+            <BookDashed size={48} color="#181818" style={{ opacity: 0.2, display: 'block', margin: '0 auto 1rem' }} />
+            <p style={{ color: '#555555', fontSize: '1.05rem', fontFamily: 'var(--font-subtitle)' }}>
+              Nenhuma lição encontrada para o seu nível atual.
+            </p>
           </div>
         )}
       </div>
