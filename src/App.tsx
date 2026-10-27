@@ -5,7 +5,6 @@ import { Login } from './pages/Login';
 import { ProfessorDashboard } from './pages/ProfessorDashboard';
 import { StudentDashboard } from './pages/StudentDashboard';
 import { StudentIpaPage } from './pages/StudentIpaPage';
-import { LessonView } from './pages/LessonView';
 import { AppLayout } from './components/AppLayout';
 import { StudentManagement } from './pages/StudentManagement';
 import { LessonViewer } from './pages/LessonViewer';
@@ -34,12 +33,10 @@ export function App() {
           <Route path="/students" element={<PrivateRoute><StudentManagement /></PrivateRoute>} />
           <Route path="/assignments" element={<PrivateRoute><Assignments /></PrivateRoute>} />
 
-          {/* ROTAS CORRIGIDAS: Agora estÃ£o dentro do PrivateRoute para exibir o Menu Lateral */}
+          {/* ROTAS CORRIGIDAS: Agora estão dentro do PrivateRoute para exibir o Menu Lateral */}
           <Route path="/lesson/:lessonId" element={<PrivateRoute><LessonViewer /></PrivateRoute>} />
           <Route path="/lesson-materials" element={<PrivateRoute><LessonMaterialsManager /></PrivateRoute>} />
 
-          {/* Mantive a sua LessonView original caso ainda a use, mas tambÃ©m deve estar protegida */}
-          <Route path="/lesson-old/:id" element={<PrivateRoute><LessonView /></PrivateRoute>} />
 
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>

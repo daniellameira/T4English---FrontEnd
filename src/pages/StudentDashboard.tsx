@@ -29,12 +29,12 @@ function isStudentDashboardData(value: unknown): value is StudentDashboardData {
   const dashboard = value as Partial<StudentDashboardData>;
   return (
     typeof dashboard.subLevelName === 'string' &&
-    (dashboard.subLevelId === undefined ||
-      dashboard.subLevelId === null ||
-      typeof dashboard.subLevelId === 'string') &&
+    (dashboard.subLevelId === null || typeof dashboard.subLevelId === 'string') &&
     typeof dashboard.attendancePercentage === 'number' &&
-    typeof dashboard.completedLessonsCount === 'number' &&
-    typeof dashboard.totalLessonsCount === 'number' &&
+    (dashboard.completedLessonsCount === undefined ||
+      typeof dashboard.completedLessonsCount === 'number') &&
+    (dashboard.totalLessonsCount === undefined ||
+      typeof dashboard.totalLessonsCount === 'number') &&
     (dashboard.completedAssignmentsCount === undefined ||
       typeof dashboard.completedAssignmentsCount === 'number') &&
     (dashboard.totalAssignmentsCount === undefined ||
@@ -122,9 +122,11 @@ export function StudentDashboard() {
     };
   }, [data.subLevelId]);
 
-  const progressPercentage = data.totalLessonsCount
+  const progressPercentage = data.totalLessonsCount !== undefined &&
+    data.totalLessonsCount > 0 &&
+    data.completedLessonsCount !== undefined
     ? Math.round((data.completedLessonsCount / data.totalLessonsCount) * 100)
-    : 0;
+    : undefined;
   const assignmentProgress = data.totalAssignmentsCount
     ? Math.round(((data.completedAssignmentsCount ?? 0) / data.totalAssignmentsCount) * 100)
     : undefined;
@@ -209,8 +211,12 @@ export function StudentDashboard() {
         />
         <DashboardMetricCard
           label="Lições concluídas"
-          value={`${progressPercentage}%`}
-          description={`${data.completedLessonsCount} de ${data.totalLessonsCount} lições concluídas.`}
+          value={progressPercentage === undefined ? '—' : `${progressPercentage}%`}
+          description={
+            data.completedLessonsCount === undefined || data.totalLessonsCount === undefined
+              ? 'Aguardando este dado no serviço do dashboard.'
+              : `${data.completedLessonsCount} de ${data.totalLessonsCount} lições concluídas.`
+          }
           icon={BookOpen}
           tone="yellow"
           progress={progressPercentage}

@@ -6,7 +6,7 @@ import { api } from '../api/client';
 interface Material {
   id: string;
   title: string;
-  embedUrl: string; // Ex: "https://docs.google.com/presentation/d/e/.../embed"
+  embedUrl: string; // Ex: "https://www.canva.com/design/DAHQVAwAGl0/Wyb-VCnWESF609yb1k6q_Q/view"
 }
 
 export function LessonViewer() {
@@ -58,7 +58,7 @@ export function LessonViewer() {
           </button>
           <div>
             <h1 style={{ fontSize: '1.8rem', color: 'var(--text-main)', marginBottom: '0.2rem' }}>
-              {material?.title || 'ConteÃºdo da Aula'}
+              {material?.title || 'Conteúdo da Aula'}
             </h1>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Passe os slides abaixo para estudar.</p>
           </div>
@@ -79,12 +79,12 @@ export function LessonViewer() {
         ) : (
           <div style={{ padding: '4rem 2rem', textAlign: 'center' }}>
             <Presentation size={48} color="#181818" style={{ opacity: 0.2, margin: '0 auto 1rem' }} />
-            <p style={{ color: '#555555', fontFamily: 'var(--font-subtitle)' }}>Nenhum material de slide disponÃ­vel para esta liÃ§Ã£o.</p>
+            <p style={{ color: '#555555', fontFamily: 'var(--font-subtitle)' }}>Nenhum material de slide disponivel para esta lição.</p>
           </div>
         )}
       </div>
 
-      {/* RodapÃ© / AcÃ£o de ConclusÃ£o */}
+      {/* Rodapé / Ação de Conclusão */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
         <button
           onClick={handleMarkAsCompleted}
@@ -107,7 +107,7 @@ export function LessonViewer() {
           }}
         >
           <CheckCircle size={20} />
-          {isCompleted ? 'Aula ConcluÃ­da!' : 'Marcar Aula como ConcluÃ­da'}
+          {isCompleted ? 'Aula Concluída!' : 'Marcar Aula como Concluída'}
         </button>
       </div>
 

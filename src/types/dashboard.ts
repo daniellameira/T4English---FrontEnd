@@ -41,11 +41,11 @@ export interface LessonProgress {
 }
 
 export interface StudentDashboardData {
-  subLevelId?: string | null;
+  subLevelId: string | null;
   subLevelName: string;
   attendancePercentage: number;
-  completedLessonsCount: number;
-  totalLessonsCount: number;
+  completedLessonsCount?: number;
+  totalLessonsCount?: number;
   completedAssignmentsCount?: number;
   totalAssignmentsCount?: number;
   lessons: LessonProgress[];

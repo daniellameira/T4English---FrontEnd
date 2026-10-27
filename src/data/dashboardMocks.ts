@@ -17,6 +17,7 @@ export const professorDashboardMock: ProfessorDashboardData = {
 };
 
 export const studentDashboardMock: StudentDashboardData = {
+  subLevelId: null,
   subLevelName: 'Basic Level',
   attendancePercentage: 88,
   completedLessonsCount: 5,

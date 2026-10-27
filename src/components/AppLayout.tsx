@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 // Importamos o Ã­cone Presentation
-import { LogOut, LayoutDashboard, Users, FileText, PlayCircle, Presentation } from 'lucide-react';
+import { LogOut, LayoutDashboard, Users, FileText, PlayCircle, Presentation, BookOpen } from 'lucide-react';
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
@@ -54,33 +54,37 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <img src="/logo.png" alt="T4 English" style={{ height: '70px', objectFit: 'contain', mixBlendMode: 'multiply' }} />
         </div>
 
-        {/* Links de NavegaÃ§Ã£o DinÃ¢micos */}
+        {/* Links de Navegação Dinâmicos */}
         <nav style={{ flex: 1, padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <Link to={dashboardPath} style={getLinkStyle(dashboardPath)}>
             <LayoutDashboard size={20} color="#E05A67" /> Dashboard
           </Link>
 
-          {isProfessor && (
+          {isProfessor ? (
             <>
               <Link to="/students" style={getLinkStyle('/students')}>
                 <Users size={20} color="#E05A67" /> Gerenciar Alunos
               </Link>
-              {/* NOVO LINK DO PROFESSOR */}
               <Link to="/lesson-materials" style={getLinkStyle('/lesson-materials')}>
                 <Presentation size={20} color="#E05A67" /> Materiais e Slides
               </Link>
             </>
+          ) : (
+            <>
+              {/* Botão de Atalho para o Visualizador de Aulas */}
+              <Link to="/lesson/current" style={getLinkStyle('/lesson')}>
+                <BookOpen size={20} color="#E05A67" /> Ver Aula
+              </Link>
+              
+              <Link to="/dashboard/student/ipa" style={getLinkStyle('/dashboard/student/ipa')}>
+                <PlayCircle size={20} color="#E05A67" /> Tabela IPA
+              </Link>
+            </>
           )}
-
+          
           <Link to="/assignments" style={getLinkStyle('/assignments')}>
             <FileText size={20} color="#E05A67" /> Tarefas
           </Link>
-
-          {!isProfessor && (
-             <Link to="/dashboard/student/ipa" style={getLinkStyle('/dashboard/student/ipa')}>
-               <PlayCircle size={20} color="#E05A67" /> Tabela IPA
-             </Link>
-          )}
         </nav>
 
         {/* Perfil do Utilizador & Sair */}
@@ -99,7 +103,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      {/* ConteÃºdo Principal */}
+      {/* Conteúdo Principal */}
       <main style={{ flex: 1, padding: '2rem', overflowY: 'auto' }}>
         {children}
       </main>
