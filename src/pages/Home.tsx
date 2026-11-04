@@ -11,9 +11,13 @@ export function Home() {
     : '/dashboard/student';
 
   return (
+    
     <div style={{ backgroundColor: '#FDFBF7', minHeight: '100vh', color: '#181818' }}>
       {/* Header Público */}
       <header style={{ backgroundColor: '#FFFFFF', borderBottom: '2px solid #181818', padding: '0.75rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 }}>
+        
+        <link rel="icon" type="image/png" href="logo ajustado.png"></link>
+
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <img src="/logo.png" alt="T4 English Logo" style={{ height: '80px', objectFit: 'contain', mixBlendMode: 'multiply' }} />
         </div>
