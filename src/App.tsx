@@ -11,6 +11,7 @@ import { LessonViewer } from './pages/LessonViewer';
 import { Assignments } from './pages/Assignments';
 import type { JSX } from 'react/jsx-runtime';
 import { LessonMaterialsManager } from './pages/LessonMaterialsManager';
+import { StudentMaterials } from './pages/StudentMaterials';
 
 function PrivateRoute({ children }: { children: JSX.Element }) {
   const { isAuthenticated } = useAuth();
@@ -33,9 +34,8 @@ export function App() {
           <Route path="/students" element={<PrivateRoute><StudentManagement /></PrivateRoute>} />
           <Route path="/assignments" element={<PrivateRoute><Assignments /></PrivateRoute>} />
 
-          {/* ROTAS CORRIGIDAS: Agora estão dentro do PrivateRoute para exibir o Menu Lateral */}
+          <Route path="/study-materials" element={<PrivateRoute><StudentMaterials /></PrivateRoute>} />
           <Route path="/lesson/:lessonId" element={<PrivateRoute><LessonViewer /></PrivateRoute>} />
-          <Route path="/lesson-materials" element={<PrivateRoute><LessonMaterialsManager /></PrivateRoute>} />
 
 
           <Route path="*" element={<Navigate to="/" />} />

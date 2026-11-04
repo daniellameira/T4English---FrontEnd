@@ -17,7 +17,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const isProfessor = user?.role?.toUpperCase() === 'PROFESSOR';
 
   const getLinkStyle = (path: string) => {
-    const isActive = location.pathname.startsWith(path); // Alterado para 'startsWith' para manter ativo em sub-rotas
+    const [pathname, hash] = path.split('#');
+    const isActive = location.pathname.startsWith(pathname) &&
+      (!hash || location.hash === `#${hash}`);
 
     return {
       display: 'flex',
@@ -42,7 +44,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-light)' }}>
       {/* Sidebar Lateral */}
       <aside style={{
-        width: '260px',
+        flex: '0 0 260px',
         backgroundColor: '#F4EFE6',
         color: '#181818',
         display: 'flex',
@@ -71,17 +73,17 @@ export function AppLayout({ children }: { children: ReactNode }) {
             </>
           ) : (
             <>
-              {/* Botão de Atalho para o Visualizador de Aulas */}
-              <Link to="/lesson/current" style={getLinkStyle('/lesson')}>
-                <BookOpen size={20} color="#E05A67" /> Ver Aula
+
+              <Link to="/study-materials" style={getLinkStyle('/study-materials')}>
+                <BookOpen size={20} color="#E05A67" /> Biblioteca de Aulas
               </Link>
-              
+
               <Link to="/dashboard/student/ipa" style={getLinkStyle('/dashboard/student/ipa')}>
                 <PlayCircle size={20} color="#E05A67" /> Tabela IPA
               </Link>
             </>
           )}
-          
+
           <Link to="/assignments" style={getLinkStyle('/assignments')}>
             <FileText size={20} color="#E05A67" /> Tarefas
           </Link>
@@ -104,7 +106,16 @@ export function AppLayout({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Conteúdo Principal */}
-      <main style={{ flex: 1, padding: '2rem', overflowY: 'auto' }}>
+      <main style={{
+        flex: 1,
+        minWidth: 0,
+        padding: '2rem',
+        overflowY: 'auto',
+        // ADICIONE ESTAS 3 LINHAS ABAIXO:
+        backgroundImage: 'url("/fundo-ipa.png")', /* Coloque a imagem na sua pasta public */
+        backgroundRepeat: 'repeat',
+        backgroundAttachment: 'fixed'
+      }}>
         {children}
       </main>
     </div>

@@ -1,116 +1,132 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, Presentation } from 'lucide-react';
-import { api } from '../api/client';
-
-interface Material {
-  id: string;
-  title: string;
-  embedUrl: string; // Ex: "https://www.canva.com/design/DAHQVAwAGl0/Wyb-VCnWESF609yb1k6q_Q/view"
-}
+import { ArrowLeft, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { COURSE_CATALOG } from '../data/courseCatalog';
 
 export function LessonViewer() {
   const { lessonId } = useParams();
   const navigate = useNavigate();
+  
+  const material = COURSE_CATALOG.find(l => l.id === lessonId);
 
-  const [loading, setLoading] = useState(true);
-  const [material, setMaterial] = useState<Material | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(60);
 
   useEffect(() => {
-    // 1. Busca os materiais da aula
-    // O endpoint deve retornar os materiais. Aqui assumimos que pega o primeiro (o slide principal).
-    api.get<Material[]>(`/Lesson/${lessonId}/materials`)
-      .then(res => {
-        if (res.data && res.data.length > 0) {
-          setMaterial(res.data[0]);
-        }
-      })
-      .catch(err => console.error('Erro ao carregar slide:', err))
-      .finally(() => setLoading(false));
-  }, [lessonId]);
-
-  const handleMarkAsCompleted = async () => {
-    try {
-      // Faz um POST ou PUT para marcar a aula como concluÃ­da na tabela StudentLessonProgress
-      await api.post(`/Lesson/${lessonId}/complete`);
-      setIsCompleted(true);
-    } catch (err) {
-      console.error('Erro ao marcar como concluÃ­da', err);
+    if (timeLeft > 0 && !isCompleted) {
+      const timerId = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+      return () => clearTimeout(timerId);
     }
+  }, [timeLeft, isCompleted]);
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
   };
 
-  if (loading) {
-    return <div style={{ fontWeight: 'bold', color: 'var(--text-main)', textAlign: 'center', marginTop: '2rem' }}>A carregar a aula...</div>;
+  if (!material) {
+    return (
+      <div style={{ textAlign: 'center', padding: '4rem' }}>
+        <h2>Aula não encontrada!</h2>
+        <button onClick={() => navigate('/study-materials')}>Voltar à Biblioteca</button>
+      </div>
+    );
   }
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div style={{ maxWidth: '950px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem', paddingBottom: '3rem' }}>
+      
+      {/* CABEÇALHO DOODLE */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', marginBottom: '0.5rem' }}>
+        <button 
+          onClick={() => navigate('/study-materials')}
+          title="Voltar à Biblioteca"
+          style={{ position: 'absolute', left: 0, backgroundColor: '#FFFFFF', border: '3px solid #181818', borderRadius: '50%', width: '45px', height: '45px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '3px 3px 0px #181818', transition: 'transform 0.1s' }}
+          onMouseDown={(e) => e.currentTarget.style.transform = 'translate(2px, 2px)'}
+          onMouseUp={(e) => e.currentTarget.style.transform = 'translate(0, 0)'}
+        >
+          <ArrowLeft size={24} color="#181818" style={{ marginLeft: '-2px' }} />
+        </button>
 
-      {/* CabeÃ§alho */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <button
-            onClick={() => navigate('/dashboard/student')}
-            style={{ backgroundColor: '#F4EFE6', border: '2px solid #181818', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '2px 2px 0px #181818' }}
-          >
-            <ArrowLeft size={20} color="#181818" />
-          </button>
-          <div>
-            <h1 style={{ fontSize: '1.8rem', color: 'var(--text-main)', marginBottom: '0.2rem' }}>
-              {material?.title || 'Conteúdo da Aula'}
-            </h1>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Passe os slides abaixo para estudar.</p>
-          </div>
+        <div style={{ textAlign: 'center' }}>
+          <h1 style={{ fontSize: '2.2rem', color: 'var(--text-main)', marginBottom: '0', textTransform: 'uppercase', textShadow: '2px 2px 0px #FFFFFF, -1px -1px 0px #FFFFFF' }}>
+            Conteúdo da Aula
+          </h1>
         </div>
       </div>
 
-      {/* Visualizador de Slides (Iframe) */}
-      <div className="doodle-card" style={{ padding: '1rem', backgroundColor: '#FFFFFF' }}>
-        {material?.embedUrl ? (
-          <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: '8px', border: '2px solid #181818' }}>
-            <iframe
-              src={material.embedUrl}
-              frameBorder="0"
-              allowFullScreen
-              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
-            ></iframe>
-          </div>
-        ) : (
-          <div style={{ padding: '4rem 2rem', textAlign: 'center' }}>
-            <Presentation size={48} color="#181818" style={{ opacity: 0.2, margin: '0 auto 1rem' }} />
-            <p style={{ color: '#555555', fontFamily: 'var(--font-subtitle)' }}>Nenhum material de slide disponivel para esta lição.</p>
-          </div>
-        )}
+      {/* TÍTULO DA AULA ESTILO "STICKER" */}
+      <div style={{ display: 'flex', justifyContent: 'center', zIndex: 10 }}>
+        <div style={{ backgroundColor: '#F4EFE6', border: '3px solid #181818', borderRadius: '20px', padding: '0.5rem 1.5rem', boxShadow: '4px 4px 0px #181818', display: 'inline-block', transform: 'rotate(-1deg)' }}>
+          <h2 style={{ fontSize: '1.2rem', color: '#181818', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>
+            {material.title}
+          </h2>
+        </div>
       </div>
 
-      {/* Rodapé / Ação de Conclusão */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-        <button
-          onClick={handleMarkAsCompleted}
-          disabled={isCompleted}
-          style={{
-            backgroundColor: isCompleted ? '#DCFCE7' : 'var(--brand-red)',
-            color: isCompleted ? '#166534' : '#fff',
-            border: '2px solid #181818',
-            padding: '0.85rem 1.5rem',
-            borderRadius: '8px',
-            cursor: isCompleted ? 'default' : 'pointer',
-            fontWeight: 'bold',
-            fontSize: '1rem',
-            boxShadow: isCompleted ? 'none' : '3px 3px 0px #181818',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            transition: 'all 0.2s ease',
-            fontFamily: 'var(--font-subtitle)'
-          }}
-        >
-          <CheckCircle size={20} />
-          {isCompleted ? 'Aula Concluída!' : 'Marcar Aula como Concluída'}
-        </button>
+      {/* QUADRO DO SLIDE (IFRAME) - AGORA COM EFEITO DOODLE FORTE */}
+      <div style={{ 
+          backgroundColor: '#FFFFFF', 
+          borderRadius: '16px', 
+          border: '4px solid #181818', // Borda mais grossa
+          overflow: 'hidden', 
+          boxShadow: '10px 10px 0px #181818', // Sombra sólida forte
+          marginTop: '-1rem' // Puxa ligeiramente para cima para intercetar o sticker
+        }}>
+        <div style={{ position: 'relative', width: '100%', height: 0, paddingTop: '56.25%', paddingBottom: 0, overflow: 'hidden', willChange: 'transform' }}>
+          <iframe 
+            loading="lazy" 
+            style={{ position: 'absolute', width: '100%', height: '100%', top: 0, left: 0, border: 'none', padding: 0, margin: 0 }}
+            src={material.embedUrl}
+            allowFullScreen 
+            title={material.title}
+          ></iframe>
+        </div>
       </div>
 
+      {/* RODAPÉ E BOTÃO DE CONCLUSÃO */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', flexWrap: 'wrap', gap: '1.5rem', padding: '0 1rem' }}>
+        
+        {/* Aviso de cópia agora bem posicionado */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#FFFFFF', border: '2px solid #181818', padding: '0.5rem 1rem', borderRadius: '8px', boxShadow: '3px 3px 0px #F3B3B7' }}>
+          <AlertCircle size={16} color="var(--brand-red)" />
+          <p style={{ fontSize: '0.8rem', color: '#181818', margin: 0, fontWeight: 'bold' }}>
+            Proibido a venda e cópia deste material.
+          </p>
+        </div>
+
+        {/* Botão Dinâmico (Tracejado se estiver a contar, Sólido se concluído) */}
+        <div>
+          <button
+            onClick={() => setIsCompleted(true)}
+            disabled={timeLeft > 0 || isCompleted}
+            style={{
+              backgroundColor: isCompleted ? '#DCFCE7' : (timeLeft > 0 ? '#FFFFFF' : 'var(--brand-red)'),
+              color: isCompleted ? '#166534' : (timeLeft > 0 ? '#181818' : '#FFFFFF'),
+              border: isCompleted ? '3px solid #166534' : (timeLeft > 0 ? '3px dashed #181818' : '3px solid #181818'),
+              padding: '1rem 2rem', 
+              borderRadius: '12px',
+              cursor: (timeLeft > 0 || isCompleted) ? 'not-allowed' : 'pointer',
+              fontWeight: 'bold', 
+              fontSize: '1.1rem',
+              boxShadow: (timeLeft > 0 || isCompleted) ? 'none' : '5px 5px 0px #181818',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              transition: 'all 0.2s ease',
+              fontFamily: 'var(--font-subtitle)'
+            }}
+          >
+            {isCompleted ? <CheckCircle size={22} /> : (timeLeft > 0 ? <Clock size={22} /> : <CheckCircle size={22} />)}
+            
+            {isCompleted 
+              ? 'Aula Concluída!' 
+              : (timeLeft > 0 ? `Disponível em ${formatTime(timeLeft)}` : 'Marcar Aula como Concluída')}
+          </button>
+        </div>
+
+      </div>
     </div>
   );
 }
