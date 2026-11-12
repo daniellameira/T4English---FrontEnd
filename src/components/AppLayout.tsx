@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-// Importamos o Ã­cone Presentation
-import { LogOut, LayoutDashboard, Users, FileText, PlayCircle, Presentation, BookOpen } from 'lucide-react';
+// Importamos o i­cone Presentation
+import { LogOut, LayoutDashboard, Users, FileText, PlayCircle, Presentation, BookOpen, BookMarked } from 'lucide-react';
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
@@ -52,8 +52,8 @@ export function AppLayout({ children }: { children: ReactNode }) {
         borderRight: '2px solid #181818'
       }}>
         {/* Topo da Logo */}
-        <div style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '2px solid #181818', backgroundColor: '#FFFFFF' }}>
-          <img src="/logo.png" alt="T4 English" style={{ height: '70px', objectFit: 'contain', mixBlendMode: 'multiply' }} />
+        <div style={{ padding: '0rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '2px solid #181818', backgroundColor: '#FFFFFF' }}>
+          <img src="/logo.png" alt="T4 English" style={{ height: '180px', objectFit: 'contain', mixBlendMode: 'multiply' }} />
         </div>
 
         {/* Links de Navegação Dinâmicos */}
@@ -67,13 +67,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
               <Link to="/students" style={getLinkStyle('/students')}>
                 <Users size={20} color="#E05A67" /> Gerenciar Alunos
               </Link>
-              <Link to="/lesson-materials" style={getLinkStyle('/lesson-materials')}>
-                <Presentation size={20} color="#E05A67" /> Materiais e Slides
-              </Link>
             </>
           ) : (
             <>
-
+              
               <Link to="/study-materials" style={getLinkStyle('/study-materials')}>
                 <BookOpen size={20} color="#E05A67" /> Biblioteca de Aulas
               </Link>
@@ -86,6 +83,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
           <Link to="/assignments" style={getLinkStyle('/assignments')}>
             <FileText size={20} color="#E05A67" /> Tarefas
+          </Link>
+          <Link to="/ebooks" style={getLinkStyle('/ebooks')}>
+            <BookMarked size={20} color="#E05A67" /> E-books
           </Link>
         </nav>
 

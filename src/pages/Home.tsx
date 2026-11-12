@@ -19,7 +19,7 @@ export function Home() {
         <link rel="icon" type="image/png" href="logo ajustado.png"></link>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <img src="/logo.png" alt="T4 English Logo" style={{ height: '80px', objectFit: 'contain', mixBlendMode: 'multiply' }} />
+          <img src="/logo.png" alt="T4 English Logo" style={{ height: '120px', objectFit: 'contain', mixBlendMode: 'multiply' }} />
         </div>
         <nav style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
           <a href="#quem-somos" style={{ color: '#181818', textDecoration: 'none', fontWeight: 'bold' }}>Quem Somos</a>
@@ -79,7 +79,7 @@ export function Home() {
               src="/logo.png"
               alt="T4 English Logo"
               style={{
-                height: '140px',
+                height: '200px',
                 objectFit: 'contain',
                 mixBlendMode: 'multiply',
                 display: 'block'
