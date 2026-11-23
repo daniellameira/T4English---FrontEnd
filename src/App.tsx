@@ -10,9 +10,8 @@ import { StudentManagement } from './pages/StudentManagement';
 import { LessonViewer } from './pages/LessonViewer';
 import { Assignments } from './pages/Assignments';
 import type { JSX } from 'react/jsx-runtime';
-import { LessonMaterialsManager } from './pages/LessonMaterialsManager';
 import { StudentMaterials } from './pages/StudentMaterials';
-import { StudentEbooks } from './pages/StudentEbooks';
+
 import { About } from './pages/About';
 
 function PrivateRoute({ children }: { children: JSX.Element }) {
@@ -37,7 +36,6 @@ export function App() {
           <Route path="/students" element={<PrivateRoute><StudentManagement /></PrivateRoute>} />
           <Route path="/assignments" element={<PrivateRoute><Assignments /></PrivateRoute>} />
           
-          <Route path="/ebooks" element={<PrivateRoute><StudentEbooks /></PrivateRoute>} />
 
           <Route path="/study-materials" element={<PrivateRoute><StudentMaterials /></PrivateRoute>} />
           <Route path="/lesson/:lessonId" element={<PrivateRoute><LessonViewer /></PrivateRoute>} />

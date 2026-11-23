@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 // Importamos o i­cone Presentation
-import { LogOut, LayoutDashboard, Users, FileText, PlayCircle, BookOpen, BookMarked } from 'lucide-react';
+import { LogOut, LayoutDashboard, Users, FileText, PlayCircle, BookOpen } from 'lucide-react';
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
@@ -83,9 +83,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <Link to="/assignments" style={getLinkStyle('/assignments')}>
             <FileText size={20} color="#E05A67" /> Tarefas
           </Link>
-          <Link to="/ebooks" style={getLinkStyle('/ebooks')}>
-            <BookMarked size={20} color="#E05A67" /> E-books
-          </Link>
+         
         </nav>
 
         {/* Perfil do Utilizador & Sair */}
