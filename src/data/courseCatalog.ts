@@ -4,7 +4,7 @@ export const COURSE_CATALOG = [
     title: 'First Step Lesson 01#',
     theme: 'Introdução e Alfabeto',
     category: 'Módulo 1: Básico',
-    embedUrl: 'https://www.canva.com/design/DAHQVAwAGl0/Wyb-VCnWESF609yb1k6q_Q/view?embed'
+    embedUrl: 'https://www.canva.com/design/DAHXiV-R8Sg/h7p9DKTfDGNmzgK2He6UOg/view?embed'
   },
   {
     id: 'first-step-02',

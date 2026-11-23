@@ -11,21 +11,24 @@ export function Home() {
     : '/dashboard/student';
 
   return (
-    
+
     <div style={{ backgroundColor: '#FDFBF7', minHeight: '100vh', color: '#181818' }}>
       {/* Header Público */}
       <header style={{ backgroundColor: '#FFFFFF', borderBottom: '2px solid #181818', padding: '0.75rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 }}>
-        
+
         <link rel="icon" type="image/png" href="logo ajustado.png"></link>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <img src="/logo.png" alt="T4 English Logo" style={{ height: '120px', objectFit: 'contain', mixBlendMode: 'multiply' }} />
         </div>
         <nav style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-          <a href="#quem-somos" style={{ color: '#181818', textDecoration: 'none', fontWeight: 'bold' }}>Quem Somos</a>
           <a href="#fonetica" style={{ color: '#181818', textDecoration: 'none', fontWeight: 'bold' }}>Tabela IPA</a>
           <a href="#missao" style={{ color: '#181818', textDecoration: 'none', fontWeight: 'bold' }}>Sobre Nós</a>
           <a href="#contato" style={{ color: '#181818', textDecoration: 'none', fontWeight: 'bold' }}>Contato</a>
+
+        {/* Página de Quem Somos */}
+          <Link to="/quem-somos" style={{textDecoration: 'none',color: '#181818',fontWeight: 700,fontSize: '1rem',padding: '0.6rem 1.2rem',borderRadius: '8px',border: '2px solid #181818',backgroundColor: '#F4EFE6',boxShadow: '3px 3px 0px #181818',}}>
+            Quem Somos </Link>
 
           {isAuthenticated ? (
             <Link to={dashboardLink} style={{ backgroundColor: '#181818', color: '#FFFFFF', padding: '0.6rem 1.25rem', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold', fontFamily: 'var(--font-subtitle)' }}>

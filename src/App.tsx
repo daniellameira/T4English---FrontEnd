@@ -13,6 +13,7 @@ import type { JSX } from 'react/jsx-runtime';
 import { LessonMaterialsManager } from './pages/LessonMaterialsManager';
 import { StudentMaterials } from './pages/StudentMaterials';
 import { StudentEbooks } from './pages/StudentEbooks';
+import { About } from './pages/About';
 
 function PrivateRoute({ children }: { children: JSX.Element }) {
   const { isAuthenticated } = useAuth();
@@ -26,6 +27,7 @@ export function App() {
         <Routes>
           {/* Rota PÃºblica Inicial */}
           <Route path="/" element={<Home />} />
+          <Route path="/quem-somos" element={<About />} />
           <Route path="/login" element={<Login />} />
 
           {/* Rotas Protegidas */}
