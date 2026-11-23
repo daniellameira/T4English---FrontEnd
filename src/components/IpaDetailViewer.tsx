@@ -1,313 +1,489 @@
-import { useState } from 'react';
-import type { CSSProperties } from 'react';
-import { Filter, Info, Sparkles, Volume2 } from 'lucide-react';
-import { ipaDetailsData } from '../data/ipaData';
+import { useState, useMemo } from 'react';
+import { Volume2, Info, Sparkles, Filter } from 'lucide-react';
+import {
+  IPA_PHONEMES,
+  IPA_SUBGROUP_STYLES,
+  type IpaCategory,
+  type IpaPhoneme,
+  type IpaSubGroup,
+} from '../data/ipaCatalog';
 
-interface IpaDetailViewerProps {
-  initialSymbolId?: string;
-}
+export function IpaDetailViewer() {
+  const [selectedPhoneme, setSelectedPhoneme] = useState<IpaPhoneme>(IPA_PHONEMES[1]); // /i:/
+  const [activeFilter, setActiveFilter] = useState<'all' | IpaCategory>('all');
+  const [speakingText, setSpeakingText] = useState<string | null>(null);
 
-const categories = [
-  { id: 'vowels', label: 'Vogais' },
-  { id: 'diphthongs', label: 'Ditongos' },
-  { id: 'consonants', label: 'Consoantes' },
-  { id: 'all', label: 'Todos' },
-] as const;
-
-type IpaCategoryTab = (typeof categories)[number]['id'];
-
-const primaryButtonStyle: CSSProperties = {
-  backgroundColor: '#E05A67',
-  color: '#FFFFFF',
-  border: '2px solid #181818',
-  boxShadow: '2px 2px 0px #181818',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  cursor: 'pointer',
-};
-
-export function IpaDetailViewer({ initialSymbolId = 'u_long' }: IpaDetailViewerProps) {
-  const [selectedId, setSelectedId] = useState(initialSymbolId);
-  const [activeTab, setActiveTab] = useState<IpaCategoryTab>('vowels');
-  const currentDetail =
-    ipaDetailsData.find((item) => item.id === selectedId) ?? ipaDetailsData[0];
-  const filteredSymbols = ipaDetailsData.filter(
-    (item) => activeTab === 'all' || item.category === activeTab,
-  );
-
-  const playSpeech = (text: string) => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'en-US';
-      utterance.rate = 0.85;
-      window.speechSynthesis.speak(utterance);
-    } else {
-      alert('Seu navegador não suporta a síntese de voz (SpeechSynthesis).');
-    }
+  const speakWord = (word: string) => {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(word);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.88;
+    setSpeakingText(word);
+    utterance.onend = () => setSpeakingText(null);
+    utterance.onerror = () => setSpeakingText(null);
+    window.speechSynthesis.speak(utterance);
   };
 
-  const selectCategory = (category: IpaCategoryTab) => {
-    setActiveTab(category);
-    if (category !== 'all') {
-      const firstInCategory = ipaDetailsData.find((item) => item.category === category);
-      if (firstInCategory) setSelectedId(firstInCategory.id);
-    }
+  const filteredPhonemes = useMemo(() => {
+    if (activeFilter === 'all') return IPA_PHONEMES;
+    return IPA_PHONEMES.filter((item) => item.category === activeFilter);
+  }, [activeFilter]);
+
+  const counts = useMemo(
+    () => ({
+      vowel: IPA_PHONEMES.filter((p) => p.category === 'vowel').length,
+      diphthong: IPA_PHONEMES.filter((p) => p.category === 'diphthong').length,
+      consonant: IPA_PHONEMES.filter((p) => p.category === 'consonant').length,
+      all: IPA_PHONEMES.length,
+    }),
+    []
+  );
+
+  const selectedStyle = IPA_SUBGROUP_STYLES[selectedPhoneme.subGroup];
+
+  const filterTitleMap: Record<'all' | IpaCategory, string> = {
+    all: 'Todos os Sons (44)',
+    vowel: 'Vogais (Vowels)',
+    diphthong: 'Ditongos (Diphthongs)',
+    consonant: 'Consoantes (Consonants)',
   };
 
   return (
-    <section
-      className="ipa-detail-viewer"
-      aria-label="Tabela de sons IPA"
-      style={{ display: 'grid', gap: '1rem' }}
-    >
-      <header style={{ marginBottom: '0.25rem' }}>
-        <h1 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Tabela de Sons IPA</h1>
-        <p style={{ color: '#555555', lineHeight: 1.6 }}>
-          Explore os sons, leia as dicas de articulação e pratique com as palavras de exemplo.
-        </p>
-      </header>
-
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.6rem',
-          padding: '0.85rem 1rem',
-          backgroundColor: '#F4EFE6',
-          border: '1px solid #E2D7C5',
-          borderRadius: '10px',
-          lineHeight: 1.5,
-        }}
-      >
-        <Sparkles size={18} color="#E05A67" aria-hidden="true" />
-        <p>
-          <strong>Dica:</strong> ouça cada palavra e repita em voz alta para praticar o som.
-        </p>
-      </div>
-
-      <article
-        className="ipa-detail-card"
-        aria-label={`Detalhes do som /${currentDetail.symbol}/`}
-        style={{
-          backgroundColor: '#FFFFFF',
-          border: '2px solid #181818',
-          borderRadius: '16px',
-          boxShadow: '4px 4px 0px #181818',
-          padding: 'clamp(1rem, 4vw, 1.5rem)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '1.5rem',
-        }}
-      >
-        <header
+    <div style={{ paddingBottom: '3rem' }}>
+      {/* Cabeçalho */}
+      <div style={{ marginBottom: '1.25rem' }}>
+        <h1
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '1rem',
-            flexWrap: 'wrap',
+            fontSize: '2rem',
+            color: 'var(--text-main)',
+            marginBottom: '0.25rem',
+            textTransform: 'uppercase',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          Tabela de Sons IPA
+        </h1>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '1rem' }}>
+          Explore os sons, veja o nome de cada símbolo fonético e pratique com as palavras de exemplo.
+        </p>
+
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            backgroundColor: '#FFFFFF',
+            border: '2px solid #181818',
+            borderRadius: '10px',
+            padding: '0.55rem 1rem',
+            boxShadow: '3px 3px 0px #181818',
+            fontSize: '0.9rem',
+          }}
+        >
+          <Sparkles size={16} color="#E05A67" />
+          <span>
+            <strong>Dica:</strong> selecione um símbolo abaixo e clique nos botões de áudio acima para ouvir e praticar.
+          </span>
+        </div>
+      </div>
+
+      {/* CARTÃO DE DESTAQUE DO SÍMBOLO SELECIONADO */}
+      <div
+        className="doodle-card"
+        style={{
+          backgroundColor: '#FFFFFF',
+          border: '3px solid #181818',
+          borderRadius: '18px',
+          padding: '1.75rem',
+          boxShadow: '7px 7px 0px #181818',
+          marginBottom: '2rem',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            gap: '1rem',
+            marginBottom: '1.25rem',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.1rem', flexWrap: 'wrap' }}>
             <div
-              aria-label={`Símbolo IPA /${currentDetail.symbol}/`}
               style={{
-                fontFamily: 'Arial, sans-serif',
-                fontSize: '2.2rem',
-                fontWeight: 'bold',
-                backgroundColor: '#F4EFE6',
-                border: '2px solid #181818',
-                borderRadius: '12px',
-                minWidth: '76px',
-                minHeight: '76px',
-                display: 'grid',
-                placeItems: 'center',
+                backgroundColor: selectedStyle.bg,
+                border: '3px solid #181818',
+                borderRadius: '14px',
+                padding: '0.75rem 1.25rem',
+                boxShadow: '3px 3px 0px #181818',
+                fontSize: '2.1rem',
+                fontWeight: 800,
+                fontFamily: 'serif',
+                color: '#181818',
+                lineHeight: 1,
               }}
             >
-              /{currentDetail.symbol}/
+              {selectedPhoneme.symbol}
             </div>
+
             <div>
-              <p style={{ color: '#555555', marginBottom: '0.25rem' }}>Som</p>
-              <h3 style={{ fontSize: '1.4rem' }}>{currentDetail.keyword}</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <span
+                  style={{
+                    backgroundColor: selectedStyle.badgeBg,
+                    border: '1.5px solid #181818',
+                    borderRadius: '999px',
+                    padding: '0.15rem 0.65rem',
+                    fontSize: '0.75rem',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {selectedStyle.label}
+                </span>
+                <span
+                  style={{
+                    fontSize: '1.15rem',
+                    fontWeight: 800,
+                    color: '#E05A67',
+                  }}
+                >
+                  {selectedPhoneme.name}
+                </span>
+              </div>
+
+              <div
+                style={{
+                  fontSize: '1.45rem',
+                  fontWeight: 800,
+                  color: '#181818',
+                  marginTop: '0.25rem',
+                }}
+              >
+                {selectedPhoneme.mainWord}
+              </div>
             </div>
           </div>
 
           <button
             type="button"
-            onClick={() => playSpeech(currentDetail.keyword)}
+            onClick={() => speakWord(selectedPhoneme.mainWord)}
+            title={`Ouvir "${selectedPhoneme.mainWord}"`}
             style={{
-              ...primaryButtonStyle,
+              width: '48px',
+              height: '48px',
               borderRadius: '50%',
-              width: '46px',
-              height: '46px',
+              backgroundColor: '#E05A67',
+              color: '#FFFFFF',
+              border: '2.5px solid #181818',
+              boxShadow: '3px 3px 0px #181818',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              flexShrink: 0,
             }}
-            title={`Ouvir ${currentDetail.keyword}`}
-            aria-label={`Ouvir ${currentDetail.keyword}`}
           >
-            <Volume2 size={20} aria-hidden="true" />
+            <Volume2 size={22} />
           </button>
-        </header>
+        </div>
 
-        <section aria-labelledby="ipa-how-to" style={{ display: 'grid', gap: '0.75rem' }}>
-          <h4
-            id="ipa-how-to"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-          >
-            <Info size={17} aria-hidden="true" />
-            Como fazer o som?
-          </h4>
-          <p style={{ lineHeight: 1.7 }}>{currentDetail.description}</p>
-          {currentDetail.diagramUrl && (
-            <img
-              src={currentDetail.diagramUrl}
-              alt={`Diagrama articulatório do som /${currentDetail.symbol}/`}
-              loading="lazy"
-              style={{
-                display: 'block',
-                width: 'min(100%, 240px)',
-                height: 'auto',
-                border: '1px solid #E2D7C5',
-                borderRadius: '10px',
-              }}
-            />
-          )}
-        </section>
-
-        <section aria-labelledby="ipa-examples" style={{ display: 'grid', gap: '0.75rem' }}>
-          <h4 id="ipa-examples">Exemplos de palavras</h4>
-          <ul
-            style={{
-              listStyle: 'none',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-              gap: '0.75rem',
-            }}
-          >
-            {currentDetail.examples.map((item) => (
-              <li
-                key={item.word}
-                style={{
-                  border: '1.5px solid #181818',
-                  borderRadius: '10px',
-                  padding: '0.65rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '0.5rem',
-                }}
-              >
-                <span>{item.word}</span>
-                <button
-                  type="button"
-                  onClick={() => playSpeech(item.word)}
-                  style={{
-                    ...primaryButtonStyle,
-                    border: '1.5px solid #181818',
-                    borderRadius: '50%',
-                    width: '32px',
-                    height: '32px',
-                    flexShrink: 0,
-                  }}
-                  title={`Ouvir ${item.word}`}
-                  aria-label={`Ouvir ${item.word}`}
-                >
-                  <Volume2 size={15} aria-hidden="true" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <nav aria-label="Navegação por categoria e sons IPA">
-          <h3
+        <div style={{ marginBottom: '1.25rem' }}>
+          <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.5rem',
-              marginBottom: '0.75rem',
+              gap: '0.4rem',
+              fontWeight: 800,
+              fontSize: '0.9rem',
+              marginBottom: '0.35rem',
             }}
           >
-            <Filter size={18} aria-hidden="true" />
-            Mais sons - {currentDetail.categoryLabel}
-          </h3>
-          <div
-            role="group"
-            aria-label="Filtrar sons por categoria"
-            style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}
-          >
-            {categories.map((tab) => {
-              const isActive = activeTab === tab.id;
-              const count =
-                tab.id === 'all'
-                  ? ipaDetailsData.length
-                  : ipaDetailsData.filter((item) => item.category === tab.id).length;
+            <Info size={16} color="#181818" />
+            <span>Como fazer o som?</span>
+          </div>
+          <p style={{ color: '#333333', fontSize: '0.95rem', margin: '0 0 0.9rem 0' }}>
+            {selectedPhoneme.description}
+          </p>
 
+          <div
+            style={{
+              display: 'inline-block',
+              backgroundColor: '#F4EFE6',
+              border: '2px solid #181818',
+              borderRadius: '10px',
+              padding: '0.75rem 1.25rem',
+              fontWeight: 800,
+              fontSize: '0.95rem',
+              color: '#181818',
+            }}
+          >
+            {selectedPhoneme.mouthCue}
+          </div>
+        </div>
+
+        <div>
+          <div style={{ fontWeight: 800, fontSize: '0.9rem', marginBottom: '0.6rem' }}>
+            Exemplos de palavras
+          </div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+              gap: '0.75rem',
+            }}
+          >
+            {selectedPhoneme.examples.map((word) => {
+              const isPlaying = speakingText === word;
               return (
                 <button
-                  key={tab.id}
+                  key={word}
                   type="button"
-                  onClick={() => selectCategory(tab.id)}
-                  aria-pressed={isActive}
+                  onClick={() => speakWord(word)}
                   style={{
-                    backgroundColor: isActive ? '#181818' : '#FFFFFF',
-                    color: isActive ? '#FFFFFF' : '#181818',
-                    border: '1.5px solid #181818',
-                    borderRadius: '8px',
-                    padding: '0.45rem 0.65rem',
-                    fontSize: '0.8rem',
-                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    backgroundColor: isPlaying ? '#FEE2E2' : '#FFFFFF',
+                    border: '2px solid #181818',
+                    borderRadius: '10px',
+                    padding: '0.6rem 0.9rem',
+                    fontWeight: 700,
+                    fontSize: '0.95rem',
+                    color: '#181818',
                     cursor: 'pointer',
+                    boxShadow: '2px 2px 0px #181818',
                   }}
                 >
-                  {tab.label} ({count})
+                  <span>{word}</span>
+                  <span
+                    style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      backgroundColor: '#E05A67',
+                      color: '#FFFFFF',
+                      border: '1.5px solid #181818',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Volume2 size={14} />
+                  </span>
                 </button>
               );
             })}
+          </div>
+        </div>
+      </div>
+
+      {/* BARRA DE FILTROS + LEGENDA DE CORES */}
+      <div style={{ marginBottom: '1.25rem' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            fontWeight: 800,
+            fontSize: '1rem',
+            marginBottom: '0.75rem',
+          }}
+        >
+          <Filter size={17} color="#E05A67" />
+          <span>Mais sons — {filterTitleMap[activeFilter]}</span>
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '1rem',
+            marginBottom: '0.9rem',
+          }}
+        >
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem' }}>
+            <button
+              type="button"
+              onClick={() => setActiveFilter('vowel')}
+              style={{
+                backgroundColor: activeFilter === 'vowel' ? '#181818' : '#CFF4FC',
+                color: activeFilter === 'vowel' ? '#FFFFFF' : '#181818',
+                border: '2px solid #181818',
+                borderRadius: '999px',
+                padding: '0.45rem 1rem',
+                fontWeight: 800,
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                boxShadow: activeFilter === 'vowel' ? 'none' : '2px 2px 0px #181818',
+              }}
+            >
+              Vogais ({counts.vowel})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveFilter('diphthong')}
+              style={{
+                backgroundColor: activeFilter === 'diphthong' ? '#181818' : '#D4E6C3',
+                color: activeFilter === 'diphthong' ? '#FFFFFF' : '#181818',
+                border: '2px solid #181818',
+                borderRadius: '999px',
+                padding: '0.45rem 1rem',
+                fontWeight: 800,
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                boxShadow: activeFilter === 'diphthong' ? 'none' : '2px 2px 0px #181818',
+              }}
+            >
+              Ditongos ({counts.diphthong})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveFilter('consonant')}
+              style={{
+                backgroundColor: activeFilter === 'consonant' ? '#181818' : '#FCC484',
+                color: activeFilter === 'consonant' ? '#FFFFFF' : '#181818',
+                border: '2px solid #181818',
+                borderRadius: '999px',
+                padding: '0.45rem 1rem',
+                fontWeight: 800,
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                boxShadow: activeFilter === 'consonant' ? 'none' : '2px 2px 0px #181818',
+              }}
+            >
+              Consoantes ({counts.consonant})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveFilter('all')}
+              style={{
+                backgroundColor: activeFilter === 'all' ? '#181818' : '#FFFFFF',
+                color: activeFilter === 'all' ? '#FFFFFF' : '#181818',
+                border: '2px solid #181818',
+                borderRadius: '999px',
+                padding: '0.45rem 1rem',
+                fontWeight: 800,
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                boxShadow: activeFilter === 'all' ? 'none' : '2px 2px 0px #181818',
+              }}
+            >
+              Todos ({counts.all})
+            </button>
           </div>
 
           <div
             style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(105px, 1fr))',
-              gap: '0.75rem',
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '0.65rem',
+              fontSize: '0.78rem',
+              fontWeight: 700,
             }}
           >
-            {filteredSymbols.map((item) => {
-              const isSelected = item.id === currentDetail.id;
-
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setSelectedId(item.id)}
-                  aria-pressed={isSelected}
+            {(Object.keys(IPA_SUBGROUP_STYLES) as IpaSubGroup[]).map((key) => (
+              <span
+                key={key}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  backgroundColor: '#FFFFFF',
+                  border: '1.5px solid #181818',
+                  borderRadius: '8px',
+                  padding: '0.2rem 0.55rem',
+                }}
+              >
+                <span
                   style={{
-                    backgroundColor: isSelected ? '#E05A67' : '#FFFFFF',
-                    color: isSelected ? '#FFFFFF' : '#181818',
-                    border: '2px solid #181818',
-                    borderRadius: '12px',
-                    padding: '0.6rem 0.25rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '0.15rem',
-                    boxShadow: isSelected ? '3px 3px 0px #181818' : '2px 2px 0px #181818',
-                    transition: 'all 0.15s ease',
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '3px',
+                    backgroundColor: IPA_SUBGROUP_STYLES[key].bg,
+                    border: '1.5px solid #181818',
                   }}
-                >
-                  <span style={{ fontFamily: 'Arial, sans-serif', fontSize: '1.2rem' }}>
-                    /{item.symbol}/
-                  </span>
-                  <small>{item.keyword}</small>
-                </button>
-              );
-            })}
+                />
+                {IPA_SUBGROUP_STYLES[key].label}
+              </span>
+            ))}
           </div>
-        </nav>
-      </article>
-    </section>
+        </div>
+      </div>
+
+      {/* GRADE COLORIDA DOS 44 SÍMBOLOS IPA (APENAS SÍMBOLO + NOME, SEM ÁUDIO AO CLICAR) */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(115px, 1fr))',
+          gap: '0.75rem',
+        }}
+      >
+        {filteredPhonemes.map((item) => {
+          const isSelected = selectedPhoneme.id === item.id;
+          const styleInfo = IPA_SUBGROUP_STYLES[item.subGroup];
+
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setSelectedPhoneme(item)}
+              style={{
+                backgroundColor: styleInfo.bg,
+                border: isSelected ? '3px solid #E05A67' : '2.5px solid #181818',
+                borderRadius: '12px',
+                padding: '0.85rem 0.5rem',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.4rem',
+                cursor: 'pointer',
+                boxShadow: isSelected ? '4px 4px 0px #181818' : '2px 2px 0px #181818',
+                transform: isSelected ? 'translateY(-3px)' : 'none',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '1.45rem',
+                  fontWeight: 800,
+                  fontFamily: 'serif',
+                  color: '#991B1B',
+                  lineHeight: 1.1,
+                }}
+              >
+                {item.symbol}
+              </span>
+
+              <span
+                style={{
+                  fontSize: '0.72rem',
+                  fontWeight: 800,
+                  color: '#181818',
+                  backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                  border: '1px solid rgba(24, 24, 24, 0.35)',
+                  borderRadius: '6px',
+                  padding: '0.15rem 0.45rem',
+                  lineHeight: 1.15,
+                  maxWidth: '100%',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+                title={item.name}
+              >
+                {item.name}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }

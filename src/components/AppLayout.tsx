@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 // Importamos o i­cone Presentation
-import { LogOut, LayoutDashboard, Users, FileText, PlayCircle, Presentation, BookOpen, BookMarked } from 'lucide-react';
+import { LogOut, LayoutDashboard, Users, FileText, PlayCircle, BookOpen, BookMarked } from 'lucide-react';
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
@@ -16,25 +16,24 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
   const isProfessor = user?.role?.toUpperCase() === 'PROFESSOR';
 
-  const getLinkStyle = (path: string) => {
-    const [pathname, hash] = path.split('#');
-    const isActive = location.pathname.startsWith(pathname) &&
-      (!hash || location.hash === `#${hash}`);
-
+ const getLinkStyle = (path: string): React.CSSProperties => {
+    const isActive = location.pathname === path;
     return {
       display: 'flex',
       alignItems: 'center',
       gap: '0.75rem',
-      color: '#181818',
-      padding: '0.75rem',
-      borderRadius: '8px',
+      width: '100%',
+      boxSizing: 'border-box',
+      padding: '0.75rem 1rem',
+      borderRadius: '10px',
       textDecoration: 'none',
-      fontWeight: 'bold',
-      fontFamily: 'var(--font-subtitle)',
-      backgroundColor: isActive ? '#FFFFFF' : 'transparent',
+      fontWeight: isActive ? 800 : 600,
+      fontSize: '0.95rem',
+      color: isActive ? '#FFFFFF' : '#181818',
+      backgroundColor: isActive ? '#E05A67' : 'transparent',
       border: isActive ? '2px solid #181818' : '2px solid transparent',
-      boxShadow: isActive ? '2px 2px 0px #181818' : 'none',
-      transition: 'all 0.2s ease'
+      boxShadow: isActive ? '3px 3px 0px #181818' : 'none',
+      transition: 'all 0.15s ease',
     };
   };
 
