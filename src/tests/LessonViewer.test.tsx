@@ -4,7 +4,6 @@ import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { LessonViewer } from '../pages/LessonViewer';
 import { api } from '../api/client';
 
-// Mock da API
 vi.mock('../api/client', () => ({
   api: {
     get: vi.fn(),
@@ -12,11 +11,76 @@ vi.mock('../api/client', () => ({
   },
 }));
 
-describe('Página LessonViewer (Visualizador e Temporizador)', () => {
+vi.mock('../data/courseCatalog', () => {
+  const mockCatalog = [
+    {
+      id: 'first-step-sumario',
+      title: 'Sumário — First Step',
+      theme: 'Visão Geral do Módulo 1',
+      category: 'Módulo 1: Básico',
+      embedUrl: 'https://example.com/sumario',
+      order: 1,
+      isSequential: true,
+    },
+    {
+      id: 'first-step-01',
+      title: 'First Step Lesson 01#',
+      theme: 'Introdução e Alfabeto',
+      category: 'Módulo 1: Básico',
+      embedUrl: 'https://example.com/lesson-01',
+      order: 2,
+      isSequential: true,
+    },
+    {
+      id: 'first-step-02',
+      title: 'First Step Lesson 02#',
+      theme: 'Verbo To Be e Cumprimentos',
+      category: 'Módulo 1: Básico',
+      embedUrl: 'https://example.com/lesson-02',
+      order: 3,
+      isSequential: true,
+    },
+    {
+      id: 'CELPIP Canada - Writing',
+      title: 'CELPIP Canada - Writing',
+      theme: 'Writing',
+      category: 'E-books',
+      embedUrl: 'https://example.com/ebook',
+      isSequential: false,
+    },
+  ];
+
+  const getSorted = (category: string) =>
+    mockCatalog
+      .filter((item) => item.category === category && item.isSequential)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  return {
+    COURSE_CATALOG: mockCatalog,
+    getLessonAccessInfo: (lesson: (typeof mockCatalog)[number], completedIds: string[]) => {
+      if (!lesson.isSequential) return { isLocked: false };
+      const sorted = getSorted(lesson.category);
+      const idx = sorted.findIndex((i) => i.id === lesson.id);
+      if (idx <= 0) return { isLocked: false };
+      const prev = sorted[idx - 1];
+      return {
+        isLocked: !completedIds.includes(prev.id),
+        prerequisiteTitle: prev.title,
+      };
+    },
+    getNextSequentialLesson: (currentLesson: (typeof mockCatalog)[number]) => {
+      if (!currentLesson.isSequential) return null;
+      const sorted = getSorted(currentLesson.category);
+      const idx = sorted.findIndex((i) => i.id === currentLesson.id);
+      return idx >= 0 && idx < sorted.length - 1 ? sorted[idx + 1] : null;
+    },
+  };
+});
+
+describe('Página LessonViewer (Sequência, Temporizador e Feedback)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // 1. Congelamos o tempo para podermos avançar 60s instantaneamente
-    vi.useFakeTimers(); 
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
@@ -24,84 +88,99 @@ describe('Página LessonViewer (Visualizador e Temporizador)', () => {
     vi.useRealTimers();
   });
 
-  const advanceLessonTimer = () => {
-    for (let second = 0; second < 60; second += 1) {
+  const renderLessonViewer = (initialRoute = '/lesson/first-step-sumario') => {
+    return render(
+      <MemoryRouter initialEntries={[initialRoute]}>
+        <Routes>
+          <Route path="/lesson/:lessonId" element={<LessonViewer />} />
+          <Route path="/study-materials" element={<div>Biblioteca de Aulas</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+  };
+
+  const advanceTimer60Seconds = () => {
+    for (let i = 0; i < 60; i++) {
       act(() => {
         vi.advanceTimersByTime(1000);
       });
     }
   };
 
-  const renderLessonViewer = () => {
-    return render(
-      <MemoryRouter initialEntries={['/lesson/first-step-01']}>
-        <Routes>
-          <Route path="/lesson/:lessonId" element={<LessonViewer />} />
-        </Routes>
-      </MemoryRouter>
+  it('deve redirecionar para a biblioteca ao tentar acessar aula sequencial bloqueada via URL', async () => {
+    (api.get as any).mockResolvedValue({ data: [] });
+
+    renderLessonViewer('/lesson/first-step-01');
+
+    await act(async () => {});
+
+    expect(screen.getByText('Biblioteca de Aulas')).toBeInTheDocument();
+  });
+
+  it('deve exigir 60s e feedback mínimo de 20 caracteres antes de concluir e liberar Próximo Conteúdo', async () => {
+    (api.get as any).mockResolvedValue({ data: [] });
+    (api.post as any).mockResolvedValue({ status: 200 });
+
+    renderLessonViewer('/lesson/first-step-sumario');
+
+    await act(async () => {});
+
+    const timerButton = screen.getByRole('button', { name: /Disponível em/i });
+    expect(timerButton).toBeDisabled();
+
+    advanceTimer60Seconds();
+
+    const feedbackInput = screen.getByLabelText(/Feedback da Aula/i);
+    fireEvent.change(feedbackInput, { target: { value: 'Aula muito boa!' } });
+
+    const pendingFeedbackButton = screen.getByRole('button', { name: /Preencha o feedback/i });
+    expect(pendingFeedbackButton).toBeDisabled();
+
+    const validFeedback = 'Excelente introdução ao módulo, explicação bem objetiva!';
+    fireEvent.change(feedbackInput, { target: { value: validFeedback } });
+
+    const completeButton = screen.getByRole('button', { name: /Marcar Aula como Concluída/i });
+    expect(completeButton).not.toBeDisabled();
+
+    fireEvent.click(completeButton);
+
+    expect(api.post).toHaveBeenCalledWith(
+      '/Lesson/catalog/first-step-sumario/complete',
+      { feedback: validFeedback }
     );
-  };
 
-  it('deve desbloquear o botão após 60 segundos e permitir concluir a aula', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: [] } as never);
-    vi.mocked(api.post).mockResolvedValue({ status: 200 } as never);
-
-    renderLessonViewer();
-
-    // Resolvemos a promessa inicial do GET silenciosamente
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    const button = screen.getByRole('button', { name: /Disponível em/i });
-    expect(button).toBeDisabled();
-
-    // Avançamos segundo a segundo para que cada render agende o próximo timer.
-    advanceLessonTimer();
-
-    expect(button).not.toBeDisabled();
-    expect(button).toHaveTextContent(/Marcar Aula como Concluída/i);
-
-    // Simulamos o clique
-    fireEvent.click(button);
-
-    expect(api.post).toHaveBeenCalledWith('/Lesson/catalog/first-step-01/complete');
-
-    // 3. A MAGIA AQUI: Devolvemos o relógio real ao navegador ANTES do waitFor!
-    // Assim o waitFor consegue verificar a promessa da API sem ficar preso.
     vi.useRealTimers();
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Aula Concluída/i })).toBeInTheDocument();
+      expect(screen.getByText(/Aula Concluída!/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Próximo Conteúdo/i })).toBeInTheDocument();
     });
   });
 
-  it('NÃO deve mostrar aula concluída se a API falhar (A nossa famosa Regra 8)', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: [] } as never);
-    vi.mocked(api.post).mockRejectedValue(new Error('Erro de rede'));
-    
-    const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
+  it('deve exibir alerta de erro e não concluir a aula se a API falhar', async () => {
+    (api.get as any).mockResolvedValue({ data: [] });
+    (api.post as any).mockRejectedValue(new Error('Erro de rede'));
 
-    renderLessonViewer();
+    renderLessonViewer('/lesson/first-step-sumario');
 
-    await act(async () => {
-      await Promise.resolve();
+    await act(async () => {});
+
+    advanceTimer60Seconds();
+
+    const feedbackInput = screen.getByLabelText(/Feedback da Aula/i);
+    fireEvent.change(feedbackInput, {
+      target: { value: 'Feedback válido com mais de vinte caracteres para o teste.' },
     });
 
-    advanceLessonTimer();
+    const completeButton = screen.getByRole('button', { name: /Marcar Aula como Concluída/i });
+    fireEvent.click(completeButton);
 
-    const button = screen.getByRole('button', { name: /Marcar Aula/i });
-    fireEvent.click(button);
-
-    // Devolvemos o relógio real para o waitFor funcionar
     vi.useRealTimers();
 
     await waitFor(() => {
-      expect(alertMock).toHaveBeenCalledWith(expect.stringContaining('Não foi possível guardar'));
+      expect(screen.getByRole('alert')).toHaveTextContent(/Não foi possível guardar/i);
     });
-    
-    expect(button).not.toHaveTextContent(/Aula Concluída/i);
-    
-    alertMock.mockRestore();
+
+    expect(screen.queryByText(/Aula Concluída!/i)).not.toBeInTheDocument();
   });
 });
