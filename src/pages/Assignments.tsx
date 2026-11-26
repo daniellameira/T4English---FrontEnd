@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
-import { api } from '../api/client';
-import { useAuth } from '../contexts/AuthContext';
+import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 import {
   PlusCircle,
@@ -9,283 +8,570 @@ import {
   Edit3,
   Trash2,
   X,
+  Upload,
+  FileText,
+  Award,
+  Clock,
+  AlertCircle,
+  Send,
+  Users,
+  BookOpen,
+  ExternalLink,
+  Search,
 } from 'lucide-react';
+import { api } from '../api/client';
+import { useAuth } from '../contexts/AuthContext';
+import { COURSE_CATALOG } from '../data/courseCatalog';
+import {
+  formatFileSize,
+  prepareAssignmentAttachment,
+} from '../utils/assignmentAttachment';
 
-interface Assignment {
+type SubmissionStatus = 'Pending' | 'Submitted' | 'Graded';
+type StudentTabFilter = 'all' | 'pending' | 'submitted' | 'graded';
+
+interface AssignmentItem {
   id: string;
   title: string;
   description: string;
-  dueDate: string;
-  lessonId: string;
-  isCompleted?: boolean;
+  dueDate: string | null;
+  catalogLessonId: string | null;
+  lessonId: string | null;
+  submissionId: string | null;
+  status: SubmissionStatus;
+  answerText: string | null;
+  attachmentFileName: string | null;
+  submittedAt: string | null;
+  grade: number | null;
+  professorFeedback: string | null;
+  submissionsCount: number;
+  pendingGradingCount: number;
 }
 
-interface SubLevelOption {
+interface StudentSubmissionItem {
   id: string;
-  name: string;
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  answerText: string | null;
+  attachmentFileName: string | null;
+  submittedAt: string | null;
+  grade: number | null;
+  professorFeedback: string | null;
 }
 
-interface LessonOption {
-  id: string;
-  title: string;
-}
-
-interface AssignmentErrorResponse {
+interface ErrorPayload {
   message?: string;
+}
+
+function getField(obj: Record<string, unknown>, keyName: string): unknown {
+  const match = Object.keys(obj).find((k) => k.toLowerCase() === keyName.toLowerCase());
+  return match === undefined ? undefined : obj[match];
+}
+
+function normalizeStatus(rawStatus: unknown, isCompleted: unknown, grade: number | null): SubmissionStatus {
+  if (typeof rawStatus === 'string') {
+    const normalized = rawStatus.trim().toLowerCase();
+    if (normalized === 'graded') return 'Graded';
+    if (normalized === 'submitted') return 'Submitted';
+    if (normalized === 'pending') return 'Pending';
+  }
+  if (grade !== null) return 'Graded';
+  if (isCompleted === true) return 'Submitted';
+  return 'Pending';
+}
+
+function normalizeAssignment(value: unknown): AssignmentItem | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const item = value as Record<string, unknown>;
+
+  const id = getField(item, 'id');
+  const title = getField(item, 'title');
+  if (typeof id !== 'string' || typeof title !== 'string') return null;
+
+  const description = getField(item, 'description');
+  const dueDate = getField(item, 'dueDate');
+  const catalogLessonId = getField(item, 'catalogLessonId');
+  const lessonId = getField(item, 'lessonId');
+  const submissionId = getField(item, 'submissionId');
+  const rawStatus = getField(item, 'status');
+  const isCompleted = getField(item, 'isCompleted');
+  const answerText = getField(item, 'answerText');
+  const attachmentFileName = getField(item, 'attachmentFileName');
+  const submittedAt = getField(item, 'submittedAt');
+  const rawGrade = getField(item, 'grade');
+  const professorFeedback = getField(item, 'professorFeedback');
+  const submissionsCount = getField(item, 'submissionsCount');
+  const pendingGradingCount = getField(item, 'pendingGradingCount');
+
+  const grade = typeof rawGrade === 'number' ? rawGrade : null;
+
+  return {
+    id,
+    title,
+    description: typeof description === 'string' ? description : '',
+    dueDate: typeof dueDate === 'string' ? dueDate : null,
+    catalogLessonId: typeof catalogLessonId === 'string' && catalogLessonId.trim() ? catalogLessonId : null,
+    lessonId: typeof lessonId === 'string' && lessonId.trim() ? lessonId : null,
+    submissionId: typeof submissionId === 'string' && submissionId.trim() ? submissionId : null,
+    status: normalizeStatus(rawStatus, isCompleted, grade),
+    answerText: typeof answerText === 'string' ? answerText : null,
+    attachmentFileName: typeof attachmentFileName === 'string' ? attachmentFileName : null,
+    submittedAt: typeof submittedAt === 'string' ? submittedAt : null,
+    grade,
+    professorFeedback: typeof professorFeedback === 'string' ? professorFeedback : null,
+    submissionsCount: typeof submissionsCount === 'number' ? submissionsCount : 0,
+    pendingGradingCount: typeof pendingGradingCount === 'number' ? pendingGradingCount : 0,
+  };
+}
+
+function normalizeSubmission(value: unknown, index: number): StudentSubmissionItem | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const item = value as Record<string, unknown>;
+
+  const rawId = getField(item, 'id') ?? getField(item, 'submissionId');
+  const studentId = getField(item, 'studentId');
+  const studentName = getField(item, 'studentName');
+  const studentEmail = getField(item, 'studentEmail');
+  const answerText = getField(item, 'answerText');
+  const attachmentFileName = getField(item, 'attachmentFileName');
+  const submittedAt = getField(item, 'submittedAt');
+  const rawGrade = getField(item, 'grade');
+  const professorFeedback = getField(item, 'professorFeedback');
+
+  if (typeof studentId !== 'string') return null;
+
+  return {
+    id: typeof rawId === 'string' && rawId.trim() ? rawId : `sub-${studentId}-${index}`,
+    studentId,
+    studentName: typeof studentName === 'string' && studentName.trim() ? studentName : 'Aluno',
+    studentEmail: typeof studentEmail === 'string' ? studentEmail : '',
+    answerText: typeof answerText === 'string' ? answerText : null,
+    attachmentFileName: typeof attachmentFileName === 'string' ? attachmentFileName : null,
+    submittedAt: typeof submittedAt === 'string' ? submittedAt : null,
+    grade: typeof rawGrade === 'number' ? rawGrade : null,
+    professorFeedback: typeof professorFeedback === 'string' ? professorFeedback : null,
+  };
+}
+
+function formatDateBr(isoDate: string | null): string {
+  if (!isoDate) return 'Sem prazo definido';
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return 'Sem prazo definido';
+  return date.toLocaleDateString('pt-BR');
+}
+
+function isOverdue(assignment: AssignmentItem): boolean {
+  if (assignment.status !== 'Pending' || !assignment.dueDate) return false;
+  const due = new Date(assignment.dueDate);
+  if (Number.isNaN(due.getTime())) return false;
+  return due.getTime() < Date.now();
 }
 
 export function Assignments() {
   const { user } = useAuth();
   const isProfessor = user?.role?.toUpperCase() === 'PROFESSOR';
 
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [subLevels, setSubLevels] = useState<SubLevelOption[]>([]);
-  const [lessons, setLessons] = useState<LessonOption[]>([]);
+  const [assignments, setAssignments] = useState<AssignmentItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [bannerSuccess, setBannerSuccess] = useState('');
 
-  // Filtros da página principal (isolados)
-  const [filterSubLevelId, setFilterSubLevelId] = useState('');
-  const [filterLessonId, setFilterLessonId] = useState('');
+  // Filtros
+  const [activeTab, setActiveTab] = useState<StudentTabFilter>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [lessonFilter, setLessonFilter] = useState('all');
 
-  // Estados do Modal (Criação / Edição)
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Modal Criar/Editar Tarefa (Professor)
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-
-  // Campos do Formulário
+  const [editingLegacyLessonId, setEditingLegacyLessonId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
-  const [modalSubLevelId, setModalSubLevelId] = useState('');
-  const [modalLessonId, setModalLessonId] = useState('');
-  const [modalLessons, setModalLessons] = useState<LessonOption[]>([]);
+  const [catalogLessonId, setCatalogLessonId] = useState('');
   const [formError, setFormError] = useState('');
-  const [formSuccess, setFormSuccess] = useState('');
+  const [isSavingForm, setIsSavingForm] = useState(false);
 
-  // 1. Carregar subníveis iniciais ao abrir a página
-  useEffect(() => {
-    async function loadInitial() {
-      try {
-        const res = await api.get('/Level/sublevels').catch(() => null);
+  // Modal Responder Tarefa (Aluno)
+  const [submittingAssignment, setSubmittingAssignment] = useState<AssignmentItem | null>(null);
+  const [answerText, setAnswerText] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [attachmentInfo, setAttachmentInfo] = useState('');
+  const [submitError, setSubmitError] = useState('');
+  const [isSubmittingWork, setIsSubmittingWork] = useState(false);
 
-        if (
-          res?.data &&
-          Array.isArray(res.data) &&
-          res.data.length > 0
-        ) {
-          setSubLevels(res.data);
-          setFilterSubLevelId(res.data[0].id);
-          setModalSubLevelId(res.data[0].id);
-        } else {
-          const fallback: SubLevelOption[] = [
-            {
-              id: '552c972b-be2b-4b25-adf5-0964b3f01444',
-              name: 'Básico - First Step',
-            },
-            {
-              id: '13a077f9-d7c8-4b09-bc32-5cc1e5d89548',
-              name: 'Básico - Basic Level 2',
-            },
-          ];
+  // Modal Ver Entregas e Corrigir (Professor)
+  const [gradingAssignment, setGradingAssignment] = useState<AssignmentItem | null>(null);
+  const [submissions, setSubmissions] = useState<StudentSubmissionItem[]>([]);
+  const [loadingSubmissions, setLoadingSubmissions] = useState(false);
+  const [gradeDrafts, setGradeDrafts] = useState<Record<string, { grade: string; feedback: string }>>({});
+  const [savingGradeId, setSavingGradeId] = useState<string | null>(null);
+  const [gradingMessage, setGradingMessage] = useState('');
 
-          setSubLevels(fallback);
-          setFilterSubLevelId(fallback[0].id);
-          setModalSubLevelId(fallback[0].id);
-        }
-      } catch (err) {
-        console.error('Erro ao carregar subníveis:', err);
-      } finally {
-        setLoading(false);
+  // Estado de abertura de anexo protegido
+  const [openingFileId, setOpeningFileId] = useState<string | null>(null);
+
+  const lessonsById = useMemo(
+    () => new Map(COURSE_CATALOG.map((lesson) => [lesson.id, lesson])),
+    []
+  );
+
+  const sequentialLessons = useMemo(
+    () =>
+      COURSE_CATALOG.filter((l) => l.isSequential).sort(
+        (a, b) => (a.order ?? 0) - (b.order ?? 0)
+      ),
+    []
+  );
+
+  const loadAssignments = async () => {
+    setLoadError('');
+    try {
+      const res = await api.get<unknown>('/Assignment');
+      if (!Array.isArray(res.data)) {
+        throw new Error('Formato de resposta inválido');
       }
+      const normalized = res.data
+        .map(normalizeAssignment)
+        .filter((item): item is AssignmentItem => item !== null);
+      setAssignments(normalized);
+    } catch (err) {
+      console.error('Erro ao carregar tarefas:', err);
+      setLoadError('Não foi possível carregar as tarefas no momento.');
+    } finally {
+      setLoading(false);
     }
+  };
 
-    loadInitial();
+  useEffect(() => {
+    loadAssignments();
   }, []);
 
-  // 2. Carregar lições do filtro principal
-  useEffect(() => {
-    if (!filterSubLevelId) {
-      return;
-    }
+  const counts = useMemo(() => {
+    return {
+      all: assignments.length,
+      pending: assignments.filter((a) => a.status === 'Pending').length,
+      submitted: assignments.filter((a) => a.status === 'Submitted').length,
+      graded: assignments.filter((a) => a.status === 'Graded').length,
+    };
+  }, [assignments]);
 
-    api
-      .get(`/Lesson/sublevel/${filterSubLevelId}`)
-      .then((res) => {
-        if (res.data && res.data.length > 0) {
-          setLessons(res.data);
-          setFilterLessonId(res.data[0].id);
-        } else {
-          setLessons([]);
-          setFilterLessonId('');
-          setAssignments([]);
-        }
-      })
-      .catch(() => {
-        setLessons([]);
-        setFilterLessonId('');
-        setAssignments([]);
+  const filteredAssignments = useMemo(() => {
+    const query = searchTerm.toLowerCase();
+
+    return assignments.filter((item) => {
+      if (!isProfessor) {
+        if (activeTab === 'pending' && item.status !== 'Pending') return false;
+        if (activeTab === 'submitted' && item.status !== 'Submitted') return false;
+        if (activeTab === 'graded' && item.status !== 'Graded') return false;
+      }
+
+      if (lessonFilter !== 'all' && item.catalogLessonId !== lessonFilter) {
+        return false;
+      }
+
+      const lessonTitle = item.catalogLessonId
+        ? lessonsById.get(item.catalogLessonId)?.title ?? ''
+        : '';
+
+      return (
+        item.title.toLowerCase().includes(query) ||
+        item.description.toLowerCase().includes(query) ||
+        lessonTitle.toLowerCase().includes(query)
+      );
+    });
+  }, [assignments, isProfessor, activeTab, lessonFilter, searchTerm, lessonsById]);
+
+  const handleOpenProtectedAttachment = async (submissionId: string, fileName: string | null) => {
+    setOpeningFileId(submissionId);
+    try {
+      const response = await api.get<Blob>(`/Assignment/submissions/${submissionId}/file`, {
+        responseType: 'blob',
       });
-  }, [filterSubLevelId]);
 
-  // 3. Carregar tarefas da lição selecionada no filtro principal
-  useEffect(() => {
-    if (!filterLessonId) {
-      return;
+      const blobUrl = window.URL.createObjectURL(response.data);
+      const opened = window.open(blobUrl, '_blank', 'noopener,noreferrer');
+
+      if (!opened) {
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName || 'anexo-tarefa';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
+
+      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 60_000);
+    } catch (err) {
+      console.error('Erro ao abrir anexo:', err);
+      alert('Não foi possível abrir o arquivo anexado.');
+    } finally {
+      setOpeningFileId(null);
     }
+  };
 
-    api
-      .get(`/Assignment/lesson/${filterLessonId}`)
-      .then((res) => setAssignments(res.data || []))
-      .catch(() => setAssignments([]));
-  }, [filterLessonId]);
-
-  // 4. Carregar lições para o Modal (Criação/Edição)
-  useEffect(() => {
-    if (!modalSubLevelId) {
-      return;
-    }
-
-    api
-      .get(`/Lesson/sublevel/${modalSubLevelId}`)
-      .then((res) => {
-        const lessonData = res.data || [];
-        setModalLessons(lessonData);
-
-        if (lessonData.length > 0 && !editingId) {
-          setModalLessonId(lessonData[0].id);
-        }
-      })
-      .catch(() => setModalLessons([]));
-  }, [modalSubLevelId, editingId]);
-
+  // --- AÇÕES DO PROFESSOR: CRIAR / EDITAR / EXCLUIR TAREFA ---
   const handleOpenCreateModal = () => {
     setEditingId(null);
+    setEditingLegacyLessonId(null);
     setTitle('');
     setDescription('');
     setDueDate('');
+    setCatalogLessonId(sequentialLessons[0]?.id ?? '');
     setFormError('');
-    setFormSuccess('');
-
-    if (subLevels.length > 0) {
-      setModalSubLevelId(subLevels[0].id);
-    }
-
-    setModalLessonId('');
-    setIsModalOpen(true);
+    setIsFormModalOpen(true);
   };
 
-  const handleOpenEditModal = (assignment: Assignment) => {
+  const handleOpenEditModal = (assignment: AssignmentItem) => {
     setEditingId(assignment.id);
+    setEditingLegacyLessonId(assignment.lessonId);
     setTitle(assignment.title);
     setDescription(assignment.description);
-    setDueDate(
-      assignment.dueDate ? assignment.dueDate.split('T')[0] : ''
+    setDueDate(assignment.dueDate ? assignment.dueDate.split('T')[0] : '');
+    setCatalogLessonId(
+      assignment.catalogLessonId ?? (assignment.lessonId ? '' : (sequentialLessons[0]?.id ?? ''))
     );
-    setModalLessonId(assignment.lessonId);
     setFormError('');
-    setFormSuccess('');
-    setIsModalOpen(true);
+    setIsFormModalOpen(true);
   };
 
   const handleSaveAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
-
     setFormError('');
-    setFormSuccess('');
+    setBannerSuccess('');
 
-    if (!modalLessonId) {
-      setFormError('Selecione uma lição válida.');
+    const effectiveLessonId = catalogLessonId ? null : editingLegacyLessonId;
+    if (!catalogLessonId && !effectiveLessonId) {
+      setFormError('Selecione uma aula do catálogo para vincular esta tarefa.');
       return;
     }
 
+    setIsSavingForm(true);
+
     try {
       const payload = {
-        title,
-        description,
-        dueDate: new Date(dueDate).toISOString(),
-        lessonId: modalLessonId,
+        title: title.trim(),
+        description: description.trim(),
+        dueDate: new Date(`${dueDate}T23:59:59`).toISOString(),
+        catalogLessonId: catalogLessonId || null,
+        lessonId: effectiveLessonId,
       };
 
       if (editingId) {
-        // Atualizar Tarefa
-        await api
-          .put(`/Assignment/${editingId}`, payload)
-          .catch(() => api.post(`/Assignment/${editingId}`, payload));
-
-        setFormSuccess('Tarefa atualizada com sucesso!');
+        await api.put(`/Assignment/${editingId}`, payload);
+        setBannerSuccess('Tarefa atualizada com sucesso!');
       } else {
-        // Criar Tarefa
         await api.post('/Assignment', payload);
-        setFormSuccess('Tarefa criada com sucesso!');
+        setBannerSuccess('Nova tarefa publicada com sucesso!');
       }
 
-      setIsModalOpen(false);
-
-      if (filterLessonId) {
-        const res = await api.get(
-          `/Assignment/lesson/${filterLessonId}`
-        );
-        setAssignments(res.data || []);
-      }
-    } catch (err: unknown) {
-      console.error('Erro ao salvar tarefa:', err);
-      const errorMessage = isAxiosError<AssignmentErrorResponse>(err)
-        ? err.response?.data?.message
-        : undefined;
-      setFormError(
-        errorMessage || 'Erro ao salvar tarefa.'
-      );
+      setIsFormModalOpen(false);
+      await loadAssignments();
+    } catch (err) {
+      const msg = isAxiosError<ErrorPayload>(err) ? err.response?.data?.message : undefined;
+      setFormError(msg || 'Não foi possível salvar a tarefa.');
+    } finally {
+      setIsSavingForm(false);
     }
   };
 
   const handleDeleteAssignment = async (id: string) => {
-    if (!window.confirm('Tem certeza que deseja excluir esta tarefa?')) {
+    if (!window.confirm('Tem certeza que deseja excluir esta tarefa e suas entregas?')) return;
+
+    try {
+      await api.delete(`/Assignment/${id}`);
+      setAssignments((prev) => prev.filter((item) => item.id !== id));
+      setBannerSuccess('Tarefa excluída com sucesso.');
+    } catch (err) {
+      console.error('Erro ao excluir tarefa:', err);
+      const msg = isAxiosError<ErrorPayload>(err)
+        ? err.response?.data?.message ||
+          (err.response?.status ? `Erro ${err.response.status} ao excluir a tarefa.` : undefined)
+        : undefined;
+      alert(msg || 'Não foi possível excluir a tarefa.');
+    }
+  };
+
+  // --- AÇÕES DO ALUNO: RESPONDER / ENVIAR PDF OU FOTO ---
+  const handleOpenSubmitModal = (assignment: AssignmentItem) => {
+    setSubmittingAssignment(assignment);
+    setAnswerText(assignment.answerText ?? '');
+    setSelectedFile(null);
+    setAttachmentInfo('');
+    setSubmitError('');
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    setSubmitError('');
+    setAttachmentInfo('');
+
+    if (!file) {
+      setSelectedFile(null);
       return;
     }
 
     try {
-      await api.delete(`/Assignment/${id}`);
-      setAssignments((current) =>
-        current.filter((assignment) => assignment.id !== id)
+      const prepared = await prepareAssignmentAttachment(file);
+      setSelectedFile(prepared.file);
+      setAttachmentInfo(
+        prepared.wasCompressed
+          ? `Imagem otimizada automaticamente (${formatFileSize(prepared.originalSizeBytes)} → ${formatFileSize(prepared.finalSizeBytes)}).`
+          : `Arquivo pronto: ${prepared.file.name} (${formatFileSize(prepared.finalSizeBytes)}).`
       );
     } catch (err) {
-      console.error('Erro ao excluir tarefa:', err);
-      alert('Não foi possível excluir a tarefa.');
+      setSelectedFile(null);
+      e.target.value = '';
+      setSubmitError(err instanceof Error ? err.message : 'Arquivo inválido.');
     }
   };
 
-  const handleCompleteAssignment = async (assignmentId: string) => {
-    try {
-      await api.post(`/Assignment/${assignmentId}/submit`);
+  const handleSubmitWork = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!submittingAssignment) return;
 
-      if (filterLessonId) {
-        const res = await api.get(
-          `/Assignment/lesson/${filterLessonId}`
-        );
-        setAssignments(res.data || []);
+    const trimmedAnswer = answerText.trim();
+    const hasExistingAttachment = Boolean(submittingAssignment.attachmentFileName);
+
+    if (!trimmedAnswer && !selectedFile && !hasExistingAttachment) {
+      setSubmitError('Escreva uma resposta ou anexe um arquivo PDF/Foto antes de enviar.');
+      return;
+    }
+
+    setSubmitError('');
+    setIsSubmittingWork(true);
+
+    try {
+      const formData = new FormData();
+      if (trimmedAnswer) {
+        formData.append('answerText', trimmedAnswer);
       }
+      if (selectedFile) {
+        formData.append('file', selectedFile);
+      }
+
+      await api.post(`/Assignment/${submittingAssignment.id}/submit`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      setSubmittingAssignment(null);
+      setBannerSuccess('Tarefa enviada com sucesso!');
+      await loadAssignments();
     } catch (err) {
-      console.error('Erro ao submeter tarefa:', err);
+      const msg = isAxiosError<ErrorPayload>(err) ? err.response?.data?.message : undefined;
+      setSubmitError(msg || 'Não foi possível enviar a tarefa. Verifique o arquivo e tente novamente.');
+    } finally {
+      setIsSubmittingWork(false);
+    }
+  };
+
+  // --- AÇÕES DO PROFESSOR: LISTAR ENTREGAS E CORRIGIR ---
+  const handleOpenGradingModal = async (assignment: AssignmentItem) => {
+    setGradingAssignment(assignment);
+    setSubmissions([]);
+    setGradingMessage('');
+    setLoadingSubmissions(true);
+
+    try {
+      const res = await api.get<unknown>(`/Assignment/${assignment.id}/submissions`);
+      const list = Array.isArray(res.data)
+        ? res.data
+            .map((item, idx) => normalizeSubmission(item, idx))
+            .filter((item): item is StudentSubmissionItem => item !== null)
+        : [];
+
+      setSubmissions(list);
+
+      const initialDrafts: Record<string, { grade: string; feedback: string }> = {};
+      for (const sub of list) {
+        initialDrafts[sub.id] = {
+          grade: sub.grade !== null ? String(sub.grade) : '',
+          feedback: sub.professorFeedback ?? '',
+        };
+      }
+      setGradeDrafts(initialDrafts);
+    } catch (err) {
+      console.error('Erro ao carregar entregas:', err);
+      setGradingMessage('Não foi possível carregar as entregas dos alunos.');
+    } finally {
+      setLoadingSubmissions(false);
+    }
+  };
+
+  const handleSaveGrade = async (submissionId: string) => {
+    const draft = gradeDrafts[submissionId];
+    if (!draft) return;
+
+    const numericGrade = Number(draft.grade.replace(',', '.'));
+    if (Number.isNaN(numericGrade) || numericGrade < 0 || numericGrade > 10) {
+      setGradingMessage('Informe uma nota válida entre 0 e 10.');
+      return;
+    }
+
+    setSavingGradeId(submissionId);
+    setGradingMessage('');
+
+    try {
+      await api.post(`/Assignment/submissions/${submissionId}/grade`, {
+        grade: numericGrade,
+        professorFeedback: draft.feedback.trim() || null,
+      });
+
+      setSubmissions((prev) =>
+        prev.map((sub) =>
+          sub.id === submissionId
+            ? {
+                ...sub,
+                grade: numericGrade,
+                professorFeedback: draft.feedback.trim() || null,
+              }
+            : sub
+        )
+      );
+      setGradingMessage('Avaliação salva com sucesso!');
+      await loadAssignments();
+    } catch (err) {
+      const msg = isAxiosError<ErrorPayload>(err) ? err.response?.data?.message : undefined;
+      setGradingMessage(msg || 'Erro ao salvar a nota.');
+    } finally {
+      setSavingGradeId(null);
     }
   };
 
   if (loading) {
-    return <div>Carregando dados...</div>;
+    return <div style={{ padding: '2rem', fontWeight: 'bold' }}>Carregando tarefas...</div>;
   }
 
   return (
-    <div>
-      {/* Cabeçalho */}
+    <div style={{ maxWidth: '1050px', margin: '0 auto', paddingBottom: '3rem' }}>
+      {/* CABEÇALHO */}
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1rem',
           marginBottom: '1.5rem',
         }}
       >
         <div>
-          <h1>{isProfessor ? 'Gerenciamento de Tarefas' : 'Minhas Tarefas'}</h1>
-          <p>Filtre por subnível e lição para visualizar as atividades.</p>
+          <h1
+            style={{
+              fontSize: '2rem',
+              color: 'var(--text-main)',
+              marginBottom: '0.25rem',
+              textTransform: 'uppercase',
+            }}
+          >
+            {isProfessor ? 'Gerenciamento de Tarefas' : 'Minhas Tarefas'}
+          </h1>
+          <p style={{ color: 'var(--text-muted)', margin: 0 }}>
+            {isProfessor
+              ? 'Crie atividades vinculadas às aulas, visualize anexos e lance notas.'
+              : 'Acompanhe suas atividades, envie respostas ou anexos (PDF/Foto) e veja suas notas.'}
+          </p>
         </div>
 
         {isProfessor && (
@@ -294,10 +580,10 @@ export function Assignments() {
             onClick={handleOpenCreateModal}
             style={{
               backgroundColor: 'var(--brand-red)',
-              color: 'var(--white)',
+              color: '#FFFFFF',
               border: '2px solid #181818',
               boxShadow: '3px 3px 0px #181818',
-              borderRadius: '8px',
+              borderRadius: '10px',
               padding: '0.75rem 1.25rem',
               fontWeight: 'bold',
               display: 'inline-flex',
@@ -313,82 +599,139 @@ export function Assignments() {
         )}
       </div>
 
-      {/* Filtros Principais da Página (Isolados) */}
+      {bannerSuccess && (
+        <div
+          role="status"
+          style={{
+            marginBottom: '1.25rem',
+            padding: '0.85rem 1rem',
+            borderRadius: '10px',
+            backgroundColor: '#DCFCE7',
+            color: '#166534',
+            border: '2px solid #166534',
+            fontWeight: 700,
+          }}
+        >
+          {bannerSuccess}
+        </div>
+      )}
+
+      {loadError && (
+        <div
+          role="alert"
+          style={{
+            marginBottom: '1.25rem',
+            padding: '0.85rem 1rem',
+            borderRadius: '10px',
+            backgroundColor: '#FEE2E2',
+            color: '#DC2626',
+            border: '2px solid #DC2626',
+            fontWeight: 700,
+          }}
+        >
+          {loadError}
+        </div>
+      )}
+
+      {/* BARRA DE ABAS (ALUNO) + BUSCA E FILTRO POR AULA */}
       <div
+        className="doodle-card"
         style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
+          backgroundColor: '#FDFBF7',
+          border: '2.5px solid #181818',
+          borderRadius: '14px',
+          padding: '1.25rem',
+          boxShadow: '4px 4px 0px #181818',
+          marginBottom: '1.75rem',
+          display: 'flex',
+          flexDirection: 'column',
           gap: '1rem',
-          marginBottom: '1.5rem',
         }}
       >
-        <div>
-          <label
+        {!isProfessor && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.65rem' }}>
+            {(
+              [
+                { key: 'all', label: `Todas (${counts.all})` },
+                { key: 'pending', label: `Pendentes (${counts.pending})` },
+                { key: 'submitted', label: `Entregues (${counts.submitted})` },
+                { key: 'graded', label: `Avaliadas (${counts.graded})` },
+              ] as const
+            ).map((tab) => {
+              const isSelected = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveTab(tab.key)}
+                  style={{
+                    backgroundColor: isSelected ? '#181818' : '#FFFFFF',
+                    color: isSelected ? '#FFFFFF' : '#181818',
+                    border: '2px solid #181818',
+                    borderRadius: '999px',
+                    padding: '0.45rem 1rem',
+                    fontWeight: 800,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    boxShadow: isSelected ? 'none' : '2px 2px 0px #181818',
+                  }}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gap: '0.85rem',
+          }}
+        >
+          <div
             style={{
-              display: 'block',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              marginBottom: '0.4rem',
+              display: 'flex',
+              alignItems: 'center',
+              backgroundColor: '#FFFFFF',
+              border: '2px solid #181818',
+              borderRadius: '10px',
+              padding: '0.5rem 0.85rem',
             }}
           >
-            Filtrar Subnível:
-          </label>
+            <Search size={18} color="#555" style={{ marginRight: '0.5rem' }} />
+            <input
+              type="text"
+              placeholder="Buscar tarefa por título ou instrução..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                border: 'none',
+                outline: 'none',
+                width: '100%',
+                fontSize: '0.9rem',
+                backgroundColor: 'transparent',
+              }}
+            />
+          </div>
 
           <select
-            value={filterSubLevelId}
-            onChange={(e) => {
-              setFilterSubLevelId(e.target.value);
-              setFilterLessonId('');
-              setLessons([]);
-              setAssignments([]);
-            }}
+            aria-label="Filtrar tarefas por aula"
+            value={lessonFilter}
+            onChange={(e) => setLessonFilter(e.target.value)}
             style={{
-              width: '100%',
-              padding: '0.6rem',
-              borderRadius: '6px',
+              padding: '0.55rem 0.85rem',
+              borderRadius: '10px',
               border: '2px solid #181818',
-              outline: 'none',
-              backgroundColor: '#fff',
-            }}
-          >
-            <option value="">Selecione o subnível...</option>
-
-            {subLevels.map((sub) => (
-              <option key={sub.id} value={sub.id}>
-                {sub.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label
-            style={{
-              display: 'block',
-              fontSize: '0.85rem',
+              backgroundColor: '#FFFFFF',
+              fontSize: '0.9rem',
               fontWeight: 600,
-              marginBottom: '0.4rem',
+              color: '#181818',
             }}
           >
-            Filtrar Lição:
-          </label>
-
-          <select
-            value={filterLessonId}
-            onChange={(e) => setFilterLessonId(e.target.value)}
-            disabled={!filterSubLevelId || lessons.length === 0}
-            style={{
-              width: '100%',
-              padding: '0.6rem',
-              borderRadius: '6px',
-              border: '2px solid #181818',
-              outline: 'none',
-              backgroundColor: '#fff',
-            }}
-          >
-            <option value="">Selecione a lição...</option>
-
-            {lessons.map((lesson) => (
+            <option value="all">Todas as aulas vinculadas</option>
+            {sequentialLessons.map((lesson) => (
               <option key={lesson.id} value={lesson.id}>
                 {lesson.title}
               </option>
@@ -397,170 +740,351 @@ export function Assignments() {
         </div>
       </div>
 
-      {/* Alerta de Sucesso */}
-      {formSuccess && !isModalOpen && (
+      {/* GRADE DE CARDS DE TAREFAS */}
+      {filteredAssignments.length > 0 ? (
         <div
           style={{
-            marginBottom: '1rem',
-            padding: '0.75rem',
-            borderRadius: '6px',
-            backgroundColor: '#DCFCE7',
-            border: '1px solid #166534',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+            gap: '1.35rem',
           }}
         >
-          {formSuccess}
-        </div>
-      )}
+          {filteredAssignments.map((assignment) => {
+            const linkedLesson = assignment.catalogLessonId
+              ? lessonsById.get(assignment.catalogLessonId)
+              : undefined;
+            const overdue = !isProfessor && isOverdue(assignment);
 
-      {/* Lista de Tarefas */}
-      {assignments.length > 0 ? (
-        assignments.map((assignment) => (
-          <div
-            key={assignment.id}
-            style={{
-              border: '2px solid #181818',
-              borderRadius: '8px',
-              padding: '1rem',
-              marginBottom: '1rem',
-              boxShadow: '3px 3px 0px #181818',
-              backgroundColor: '#fff',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                gap: '1rem',
-              }}
-            >
-              <div style={{ flex: 1 }}>
-                <h3 style={{ marginTop: 0 }}>{assignment.title}</h3>
+            return (
+              <div
+                key={assignment.id}
+                className="doodle-card"
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  border: '2.5px solid #181818',
+                  borderRadius: '14px',
+                  padding: '1.35rem',
+                  boxShadow: '4px 4px 0px #181818',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.85rem',
+                }}
+              >
+                {/* Topo: Aula vinculada + Status/Prazo */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '0.5rem',
+                  }}
+                >
+                  {linkedLesson ? (
+                    <Link
+                      to={`/lesson/${encodeURIComponent(linkedLesson.id)}`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        backgroundColor: '#F4EFE6',
+                        color: '#181818',
+                        border: '1.5px solid #181818',
+                        borderRadius: '999px',
+                        padding: '0.2rem 0.65rem',
+                        fontSize: '0.75rem',
+                        fontWeight: 800,
+                        textDecoration: 'none',
+                      }}
+                    >
+                      <BookOpen size={13} />
+                      <span>{linkedLesson.title}</span>
+                    </Link>
+                  ) : (
+                    <span
+                      style={{
+                        backgroundColor: '#F4EFE6',
+                        border: '1.5px solid #181818',
+                        borderRadius: '999px',
+                        padding: '0.2rem 0.65rem',
+                        fontSize: '0.75rem',
+                        fontWeight: 800,
+                      }}
+                    >
+                      Atividade Vinculada
+                    </span>
+                  )}
 
-                <p>{assignment.description}</p>
+                  {!isProfessor && (
+                    <span
+                      style={{
+                        backgroundColor:
+                          assignment.status === 'Graded'
+                            ? '#DCFCE7'
+                            : assignment.status === 'Submitted'
+                              ? '#DBEAFE'
+                              : overdue
+                                ? '#FEE2E2'
+                                : '#FEF3C7',
+                        color:
+                          assignment.status === 'Graded'
+                            ? '#166534'
+                            : assignment.status === 'Submitted'
+                              ? '#1E40AF'
+                              : overdue
+                                ? '#DC2626'
+                                : '#92400E',
+                        border: '1.5px solid #181818',
+                        borderRadius: '999px',
+                        padding: '0.2rem 0.65rem',
+                        fontSize: '0.75rem',
+                        fontWeight: 800,
+                      }}
+                    >
+                      {assignment.status === 'Graded'
+                        ? `Nota: ${assignment.grade}/10`
+                        : assignment.status === 'Submitted'
+                          ? 'Aguardando Correção'
+                          : overdue
+                            ? 'Prazo Encerrado'
+                            : 'Pendente'}
+                    </span>
+                  )}
+                </div>
 
+                {/* Título e Descrição */}
+                <div style={{ flex: 1 }}>
+                  <h3 style={{ fontSize: '1.15rem', color: '#181818', margin: '0 0 0.35rem 0' }}>
+                    {assignment.title}
+                  </h3>
+                  <p style={{ color: '#444444', fontSize: '0.9rem', margin: 0, lineHeight: 1.45 }}>
+                    {assignment.description}
+                  </p>
+                </div>
+
+                {/* Data Limite */}
                 <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.4rem',
-                    fontSize: '0.9rem',
+                    fontSize: '0.83rem',
+                    fontWeight: 700,
+                    color: overdue ? '#DC2626' : '#555555',
                   }}
                 >
-                  <Calendar size={16} />
-                  Entrega:{' '}
-                  {assignment.dueDate
-                    ? new Date(assignment.dueDate).toLocaleDateString(
-                        'pt-BR'
-                      )
-                    : 'Sem data'}
+                  <Calendar size={15} />
+                  <span>Entrega até: {formatDateBr(assignment.dueDate)}</span>
                 </div>
-              </div>
 
-              {isProfessor && (
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: '0.5rem',
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => handleOpenEditModal(assignment)}
-                    title="Editar Tarefa"
+                {/* Resumo da entrega do aluno (se já enviada) */}
+                {!isProfessor && assignment.status !== 'Pending' && (
+                  <div
                     style={{
-                      backgroundColor: '#FEF08A',
-                      border: '2px solid #181818',
-                      borderRadius: '6px',
-                      padding: '0.5rem',
-                      cursor: 'pointer',
-                      boxShadow: '2px 2px 0px #181818',
-                    }}
-                  >
-                    <Edit3 size={18} />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleDeleteAssignment(assignment.id)
-                    }
-                    title="Excluir Tarefa"
-                    style={{
-                      backgroundColor: '#FEE2E2',
-                      border: '2px solid #181818',
-                      borderRadius: '6px',
-                      padding: '0.5rem',
-                      cursor: 'pointer',
-                      boxShadow: '2px 2px 0px #181818',
-                    }}
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {!isProfessor && (
-              <div style={{ marginTop: '1rem' }}>
-                {assignment.isCompleted ? (
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.4rem',
-                      fontWeight: 'bold',
-                    }}
-                  >
-                    <CheckCircle size={18} />
-                    Entregue
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleCompleteAssignment(assignment.id)
-                    }
-                    style={{
-                      backgroundColor: 'var(--brand-red)',
-                      color: '#fff',
-                      border: '2px solid #181818',
-                      padding: '0.6rem 1.25rem',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      fontWeight: 'bold',
+                      backgroundColor: '#FDFBF7',
+                      border: '1.5px solid #D6C7B2',
+                      borderRadius: '10px',
+                      padding: '0.75rem',
                       fontSize: '0.85rem',
-                      boxShadow: '2px 2px 0px #181818',
-                      fontFamily: 'var(--font-subtitle)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.45rem',
                     }}
                   >
-                    Marcar como Entregue
-                  </button>
+                    {assignment.answerText && (
+                      <p style={{ margin: 0, color: '#181818' }}>
+                        <strong>Sua resposta:</strong> {assignment.answerText}
+                      </p>
+                    )}
+
+                    {assignment.attachmentFileName && assignment.submissionId && (
+                      <button
+                        type="button"
+                        disabled={openingFileId === assignment.submissionId}
+                        onClick={() =>
+                          handleOpenProtectedAttachment(
+                            assignment.submissionId!,
+                            assignment.attachmentFileName
+                          )
+                        }
+                        style={{
+                          alignSelf: 'flex-start',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          backgroundColor: '#FFFFFF',
+                          border: '1.5px solid #181818',
+                          borderRadius: '6px',
+                          padding: '0.3rem 0.6rem',
+                          fontSize: '0.8rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <FileText size={14} />
+                        <span>
+                          {openingFileId === assignment.submissionId
+                            ? 'Abrindo...'
+                            : assignment.attachmentFileName}
+                        </span>
+                        <ExternalLink size={12} />
+                      </button>
+                    )}
+
+                    {assignment.status === 'Graded' && assignment.professorFeedback && (
+                      <div
+                        style={{
+                          marginTop: '0.25rem',
+                          paddingTop: '0.45rem',
+                          borderTop: '1px dashed #D6C7B2',
+                          color: '#166534',
+                        }}
+                      >
+                        <strong>Comentário do Professor:</strong> {assignment.professorFeedback}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Rodapé de Ações */}
+                {isProfessor ? (
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      paddingTop: '0.5rem',
+                      borderTop: '1.5px solid #F4EFE6',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleOpenGradingModal(assignment)}
+                      style={{
+                        flex: 1,
+                        backgroundColor: '#181818',
+                        color: '#FFFFFF',
+                        border: '2px solid #181818',
+                        borderRadius: '8px',
+                        padding: '0.55rem 0.85rem',
+                        fontWeight: 800,
+                        fontSize: '0.84rem',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.45rem',
+                      }}
+                    >
+                      <Users size={16} />
+                      <span>
+                        Entregas ({assignment.submissionsCount})
+                        {assignment.pendingGradingCount > 0
+                          ? ` • ${assignment.pendingGradingCount} pendente(s)`
+                          : ''}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditModal(assignment)}
+                      title="Editar Tarefa"
+                      style={{
+                        backgroundColor: '#FEF08A',
+                        border: '2px solid #181818',
+                        borderRadius: '8px',
+                        padding: '0.5rem',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Edit3 size={17} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteAssignment(assignment.id)}
+                      title="Excluir Tarefa"
+                      style={{
+                        backgroundColor: '#FEE2E2',
+                        border: '2px solid #181818',
+                        borderRadius: '8px',
+                        padding: '0.5rem',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Trash2 size={17} />
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenSubmitModal(assignment)}
+                      style={{
+                        width: '100%',
+                        backgroundColor:
+                          assignment.status === 'Pending' ? 'var(--brand-red)' : '#FFFFFF',
+                        color: assignment.status === 'Pending' ? '#FFFFFF' : '#181818',
+                        border: '2px solid #181818',
+                        borderRadius: '8px',
+                        padding: '0.65rem 1rem',
+                        fontWeight: 800,
+                        fontSize: '0.88rem',
+                        cursor: 'pointer',
+                        boxShadow: '2px 2px 0px #181818',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.45rem',
+                      }}
+                    >
+                      {assignment.status === 'Pending' ? (
+                        <>
+                          <Send size={16} />
+                          <span>Responder Tarefa</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle size={16} />
+                          <span>
+                            {assignment.status === 'Graded' ? 'Reenviar / Atualizar' : 'Editar Entrega'}
+                          </span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 )}
               </div>
-            )}
-          </div>
-        ))
+            );
+          })}
+        </div>
       ) : (
         <div
+          className="doodle-card"
           style={{
-            padding: '2rem',
+            padding: '3rem 1.5rem',
             textAlign: 'center',
-            border: '1px dashed #999',
-            borderRadius: '8px',
+            backgroundColor: '#FFFFFF',
+            border: '2px dashed #181818',
+            borderRadius: '14px',
           }}
         >
-          Nenhuma tarefa cadastrada para a lição selecionada.
+          <Clock size={40} color="#181818" style={{ opacity: 0.25, margin: '0 auto 0.75rem' }} />
+          <h3 style={{ margin: '0 0 0.35rem 0', color: '#181818' }}>Nenhuma tarefa encontrada</h3>
+          <p style={{ margin: 0, color: '#555555', fontSize: '0.92rem' }}>
+            Não há atividades correspondentes aos filtros selecionados.
+          </p>
         </div>
       )}
 
-      {/* Modal para Criar / Editar Tarefa (Professor) */}
-      {isModalOpen && (
+      {/* MODAL DO ALUNO: ENVIAR RESPOSTA / PDF / FOTO */}
+      {submittingAssignment && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backgroundColor: 'rgba(0, 0, 0, 0.55)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -572,24 +1096,22 @@ export function Assignments() {
             style={{
               position: 'relative',
               width: '100%',
-              maxWidth: '600px',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              backgroundColor: '#fff',
-              borderRadius: '10px',
-              border: '2px solid #181818',
-              boxShadow: '5px 5px 0px #181818',
+              maxWidth: '560px',
+              backgroundColor: '#FFFFFF',
+              borderRadius: '14px',
+              border: '3px solid #181818',
+              boxShadow: '6px 6px 0px #181818',
               padding: '1.5rem',
             }}
           >
             <button
               type="button"
-              onClick={() => setIsModalOpen(false)}
+              onClick={() => setSubmittingAssignment(null)}
               title="Fechar"
               style={{
                 position: 'absolute',
-                top: '16px',
-                right: '16px',
+                top: '14px',
+                right: '14px',
                 background: 'none',
                 border: 'none',
                 cursor: 'pointer',
@@ -598,18 +1120,203 @@ export function Assignments() {
               <X size={22} />
             </button>
 
-            <h2>
-              {editingId ? 'Editar Tarefa' : 'Nova Tarefa'}
-            </h2>
+            <h2 style={{ marginTop: 0, marginBottom: '0.35rem' }}>{submittingAssignment.title}</h2>
+            <p style={{ color: '#555555', fontSize: '0.9rem', marginBottom: '1.25rem' }}>
+              {submittingAssignment.description}
+            </p>
+
+            {submitError && (
+              <div
+                role="alert"
+                style={{
+                  marginBottom: '1rem',
+                  padding: '0.7rem 0.9rem',
+                  borderRadius: '8px',
+                  backgroundColor: '#FEE2E2',
+                  color: '#DC2626',
+                  border: '1.5px solid #DC2626',
+                  fontSize: '0.88rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                }}
+              >
+                <AlertCircle size={17} />
+                <span>{submitError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmitWork}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label
+                  htmlFor="student-answer-text"
+                  style={{ display: 'block', fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.4rem' }}
+                >
+                  Sua resposta ou link de apoio
+                </label>
+                <textarea
+                  id="student-answer-text"
+                  rows={4}
+                  value={answerText}
+                  onChange={(e) => setAnswerText(e.target.value)}
+                  placeholder="Escreva aqui as frases, respostas dos exercícios ou cole um link..."
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '2px solid #181818',
+                    fontFamily: 'inherit',
+                    fontSize: '0.95rem',
+                    resize: 'vertical',
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label
+                  htmlFor="student-attachment-file"
+                  style={{ display: 'block', fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.4rem' }}
+                >
+                  Anexar PDF ou Foto da atividade (opcional • máx. 5 MB)
+                </label>
+
+                <label
+                  htmlFor="student-attachment-file"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.55rem',
+                    padding: '0.9rem',
+                    border: '2px dashed #181818',
+                    borderRadius: '10px',
+                    backgroundColor: '#FDFBF7',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    fontSize: '0.9rem',
+                  }}
+                >
+                  <Upload size={18} color="var(--brand-red)" />
+                  <span>
+                    {selectedFile
+                      ? selectedFile.name
+                      : submittingAssignment.attachmentFileName
+                        ? `Substituir arquivo atual (${submittingAssignment.attachmentFileName})`
+                        : 'Selecionar PDF, JPG, PNG ou WEBP'}
+                  </span>
+                </label>
+                <input
+                  id="student-attachment-file"
+                  type="file"
+                  accept=".pdf,image/jpeg,image/png,image/webp"
+                  onChange={handleFileChange}
+                  style={{ display: 'none' }}
+                />
+
+                {attachmentInfo && (
+                  <p style={{ margin: '0.45rem 0 0 0', fontSize: '0.82rem', color: '#166534', fontWeight: 700 }}>
+                    {attachmentInfo}
+                  </p>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setSubmittingAssignment(null)}
+                  style={{
+                    flex: 1,
+                    padding: '0.7rem',
+                    borderRadius: '8px',
+                    border: '2px solid #181818',
+                    backgroundColor: '#FFFFFF',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingWork}
+                  style={{
+                    flex: 1,
+                    padding: '0.7rem',
+                    borderRadius: '8px',
+                    border: '2px solid #181818',
+                    backgroundColor: 'var(--brand-red)',
+                    color: '#FFFFFF',
+                    fontWeight: 800,
+                    cursor: isSubmittingWork ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {isSubmittingWork ? 'Enviando...' : 'Enviar Tarefa'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DO PROFESSOR: CRIAR / EDITAR TAREFA */}
+      {isFormModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.55)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              position: 'relative',
+              width: '100%',
+              maxWidth: '560px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              backgroundColor: '#FFFFFF',
+              borderRadius: '14px',
+              border: '3px solid #181818',
+              boxShadow: '6px 6px 0px #181818',
+              padding: '1.5rem',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setIsFormModalOpen(false)}
+              title="Fechar"
+              style={{
+                position: 'absolute',
+                top: '14px',
+                right: '14px',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <X size={22} />
+            </button>
+
+            <h2 style={{ marginTop: 0 }}>{editingId ? 'Editar Tarefa' : 'Nova Tarefa'}</h2>
 
             {formError && (
               <div
+                role="alert"
                 style={{
                   marginBottom: '1rem',
-                  padding: '0.75rem',
-                  borderRadius: '6px',
+                  padding: '0.7rem',
+                  borderRadius: '8px',
                   backgroundColor: '#FEE2E2',
-                  border: '1px solid #991B1B',
+                  color: '#DC2626',
+                  border: '1.5px solid #DC2626',
+                  fontWeight: 700,
                 }}
               >
                 {formError}
@@ -618,73 +1325,77 @@ export function Assignments() {
 
             <form onSubmit={handleSaveAssignment}>
               <div style={{ marginBottom: '1rem' }}>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    marginBottom: '0.4rem',
-                  }}
-                >
+                <label style={{ display: 'block', fontWeight: 700, fontSize: '0.88rem', marginBottom: '0.35rem' }}>
                   Título da Tarefa
                 </label>
-
                 <input
                   type="text"
                   required
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Ex: Homework Lesson 02"
+                  placeholder="Ex: Homework — Verb To Be (Afirmativo)"
                   style={{
                     width: '100%',
-                    padding: '0.6rem',
-                    borderRadius: '6px',
-                    border: '1px solid var(--bg-bege-dark)',
-                    outline: 'none',
+                    boxSizing: 'border-box',
+                    padding: '0.65rem',
+                    borderRadius: '8px',
+                    border: '2px solid #181818',
                   }}
                 />
               </div>
 
               <div style={{ marginBottom: '1rem' }}>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    marginBottom: '0.4rem',
-                  }}
-                >
-                  Instruções / Descrição
+                <label style={{ display: 'block', fontWeight: 700, fontSize: '0.88rem', marginBottom: '0.35rem' }}>
+                  Instruções para o Aluno
                 </label>
-
                 <textarea
                   required
+                  rows={3}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Descreva o que o aluno deve realizar..."
+                  placeholder="Descreva o exercício ou peça o envio de foto/PDF..."
                   style={{
                     width: '100%',
-                    padding: '0.6rem',
-                    borderRadius: '6px',
-                    border: '1px solid var(--bg-bege-dark)',
-                    outline: 'none',
+                    boxSizing: 'border-box',
+                    padding: '0.65rem',
+                    borderRadius: '8px',
+                    border: '2px solid #181818',
                     resize: 'vertical',
                   }}
                 />
               </div>
 
               <div style={{ marginBottom: '1rem' }}>
-                <label
+                <label style={{ display: 'block', fontWeight: 700, fontSize: '0.88rem', marginBottom: '0.35rem' }}>
+                  Aula Vinculada (Catálogo First Step)
+                </label>
+                <select
+                  required={!editingLegacyLessonId}
+                  value={catalogLessonId}
+                  onChange={(e) => setCatalogLessonId(e.target.value)}
                   style={{
-                    display: 'block',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    marginBottom: '0.4rem',
+                    width: '100%',
+                    padding: '0.65rem',
+                    borderRadius: '8px',
+                    border: '2px solid #181818',
+                    backgroundColor: '#FFFFFF',
                   }}
                 >
+                  {editingLegacyLessonId && (
+                    <option value="">Manter vínculo original da aula</option>
+                  )}
+                  {sequentialLessons.map((lesson) => (
+                    <option key={lesson.id} value={lesson.id}>
+                      {lesson.title} — {lesson.theme}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', fontWeight: 700, fontSize: '0.88rem', marginBottom: '0.35rem' }}>
                   Data Limite de Entrega
                 </label>
-
                 <input
                   type="date"
                   required
@@ -692,132 +1403,312 @@ export function Assignments() {
                   onChange={(e) => setDueDate(e.target.value)}
                   style={{
                     width: '100%',
-                    padding: '0.6rem',
-                    borderRadius: '6px',
-                    border: '1px solid var(--bg-bege-dark)',
-                    outline: 'none',
+                    boxSizing: 'border-box',
+                    padding: '0.65rem',
+                    borderRadius: '8px',
+                    border: '2px solid #181818',
                   }}
                 />
               </div>
 
-              <div style={{ marginBottom: '1rem' }}>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    marginBottom: '0.4rem',
-                  }}
-                >
-                  Subnível:
-                </label>
-
-                <select
-                  value={modalSubLevelId}
-                  onChange={(e) => {
-                    setModalSubLevelId(e.target.value);
-                    setModalLessonId('');
-                    setModalLessons([]);
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '0.6rem',
-                    borderRadius: '6px',
-                    border: '2px solid #181818',
-                    outline: 'none',
-                    backgroundColor: '#fff',
-                  }}
-                >
-                  <option value="">Selecione o subnível...</option>
-
-                  {subLevels.map((sub) => (
-                    <option key={sub.id} value={sub.id}>
-                      {sub.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    marginBottom: '0.4rem',
-                  }}
-                >
-                  Lição Destino:
-                </label>
-
-                <select
-                  required
-                  value={modalLessonId}
-                  onChange={(e) => setModalLessonId(e.target.value)}
-                  disabled={modalLessons.length === 0}
-                  style={{
-                    width: '100%',
-                    padding: '0.6rem',
-                    borderRadius: '6px',
-                    border: '2px solid #181818',
-                    outline: 'none',
-                    backgroundColor: '#fff',
-                  }}
-                >
-                  {modalLessons.length === 0 && (
-                    <option value="">
-                      Nenhuma lição disponível
-                    </option>
-                  )}
-
-                  {modalLessons.map((lesson) => (
-                    <option key={lesson.id} value={lesson.id}>
-                      {lesson.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: '0.75rem',
-                }}
-              >
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => setIsFormModalOpen(false)}
                   style={{
                     flex: 1,
-                    padding: '0.6rem',
-                    borderRadius: '6px',
+                    padding: '0.7rem',
+                    borderRadius: '8px',
                     border: '2px solid #181818',
-                    backgroundColor: '#fff',
+                    backgroundColor: '#FFFFFF',
+                    fontWeight: 800,
                     cursor: 'pointer',
-                    fontWeight: 'bold',
                   }}
                 >
                   Cancelar
                 </button>
-
                 <button
                   type="submit"
+                  disabled={isSavingForm}
                   style={{
                     flex: 1,
-                    padding: '0.6rem',
-                    borderRadius: '6px',
+                    padding: '0.7rem',
+                    borderRadius: '8px',
                     border: '2px solid #181818',
                     backgroundColor: 'var(--brand-red)',
-                    color: '#fff',
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
+                    color: '#FFFFFF',
+                    fontWeight: 800,
+                    cursor: isSavingForm ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  Salvar
+                  {isSavingForm ? 'Salvando...' : 'Salvar Tarefa'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DO PROFESSOR: VISUALIZAR ENTREGAS E DAR NOTA */}
+      {gradingAssignment && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.55)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              position: 'relative',
+              width: '100%',
+              maxWidth: '720px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              backgroundColor: '#FFFFFF',
+              borderRadius: '14px',
+              border: '3px solid #181818',
+              boxShadow: '6px 6px 0px #181818',
+              padding: '1.5rem',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setGradingAssignment(null)}
+              title="Fechar"
+              style={{
+                position: 'absolute',
+                top: '14px',
+                right: '14px',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <X size={22} />
+            </button>
+
+            <h2 style={{ marginTop: 0, marginBottom: '0.25rem' }}>
+              Entregas — {gradingAssignment.title}
+            </h2>
+            <p style={{ color: '#555555', fontSize: '0.88rem', marginBottom: '1rem' }}>
+              Abra os anexos enviados pelos alunos e atribua a nota (0 a 10).
+            </p>
+
+            {gradingMessage && (
+              <div
+                role="status"
+                style={{
+                  marginBottom: '1rem',
+                  padding: '0.65rem 0.9rem',
+                  borderRadius: '8px',
+                  backgroundColor: '#F4EFE6',
+                  border: '1.5px solid #181818',
+                  fontWeight: 700,
+                  fontSize: '0.88rem',
+                }}
+              >
+                {gradingMessage}
+              </div>
+            )}
+
+            {loadingSubmissions ? (
+              <p>Carregando entregas...</p>
+            ) : submissions.length === 0 ? (
+              <div
+                style={{
+                  padding: '2rem',
+                  textAlign: 'center',
+                  border: '1.5px dashed #999',
+                  borderRadius: '10px',
+                  color: '#555555',
+                }}
+              >
+                Nenhum aluno enviou esta tarefa ainda.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {submissions.map((sub) => {
+                  const draft = gradeDrafts[sub.id] ?? { grade: '', feedback: '' };
+                  return (
+                    <div
+                      key={sub.id}
+                      style={{
+                        border: '2px solid #181818',
+                        borderRadius: '10px',
+                        padding: '1rem',
+                        backgroundColor: '#FDFBF7',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.75rem',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: '0.5rem',
+                        }}
+                      >
+                        <div>
+                          <strong style={{ fontSize: '1rem', color: '#181818' }}>
+                            {sub.studentName}
+                          </strong>
+                          {sub.studentEmail && (
+                            <span style={{ color: '#555555', fontSize: '0.82rem', marginLeft: '0.5rem' }}>
+                              ({sub.studentEmail})
+                            </span>
+                          )}
+                        </div>
+
+                        {sub.grade !== null && (
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.3rem',
+                              backgroundColor: '#DCFCE7',
+                              color: '#166534',
+                              border: '1.5px solid #166534',
+                              borderRadius: '999px',
+                              padding: '0.15rem 0.65rem',
+                              fontSize: '0.78rem',
+                              fontWeight: 800,
+                            }}
+                          >
+                            <Award size={14} />
+                            Avaliada: {sub.grade}/10
+                          </span>
+                        )}
+                      </div>
+
+                      {sub.answerText && (
+                        <div
+                          style={{
+                            backgroundColor: '#FFFFFF',
+                            border: '1px solid #E2D7C5',
+                            borderRadius: '8px',
+                            padding: '0.65rem 0.85rem',
+                            fontSize: '0.9rem',
+                          }}
+                        >
+                          {sub.answerText}
+                        </div>
+                      )}
+
+                      {sub.attachmentFileName && (
+                        <div>
+                          <button
+                            type="button"
+                            disabled={openingFileId === sub.id}
+                            onClick={() =>
+                              handleOpenProtectedAttachment(sub.id, sub.attachmentFileName)
+                            }
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.4rem',
+                              backgroundColor: '#FFFFFF',
+                              border: '2px solid #181818',
+                              borderRadius: '8px',
+                              padding: '0.45rem 0.8rem',
+                              fontWeight: 700,
+                              fontSize: '0.85rem',
+                              cursor: 'pointer',
+                              boxShadow: '2px 2px 0px #181818',
+                            }}
+                          >
+                            <FileText size={16} color="var(--brand-red)" />
+                            <span>
+                              {openingFileId === sub.id
+                                ? 'Abrindo anexo...'
+                                : `Visualizar / Baixar: ${sub.attachmentFileName}`}
+                            </span>
+                            <ExternalLink size={14} />
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Formulário de Nota e Feedback */}
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '110px 1fr auto',
+                          gap: '0.6rem',
+                          alignItems: 'center',
+                          paddingTop: '0.5rem',
+                          borderTop: '1px dashed #D6C7B2',
+                        }}
+                      >
+                        <input
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          max="10"
+                          aria-label={`Nota de ${sub.studentName}`}
+                          placeholder="Nota (0-10)"
+                          value={draft.grade}
+                          onChange={(e) =>
+                            setGradeDrafts((prev) => ({
+                              ...prev,
+                              [sub.id]: { ...draft, grade: e.target.value },
+                            }))
+                          }
+                          style={{
+                            padding: '0.5rem',
+                            borderRadius: '6px',
+                            border: '2px solid #181818',
+                            fontWeight: 700,
+                          }}
+                        />
+
+                        <input
+                          type="text"
+                          aria-label={`Comentário para ${sub.studentName}`}
+                          placeholder="Comentário de correção (opcional)..."
+                          value={draft.feedback}
+                          onChange={(e) =>
+                            setGradeDrafts((prev) => ({
+                              ...prev,
+                              [sub.id]: { ...draft, feedback: e.target.value },
+                            }))
+                          }
+                          style={{
+                            padding: '0.5rem 0.7rem',
+                            borderRadius: '6px',
+                            border: '2px solid #181818',
+                          }}
+                        />
+
+                        <button
+                          type="button"
+                          disabled={savingGradeId === sub.id}
+                          onClick={() => handleSaveGrade(sub.id)}
+                          style={{
+                            backgroundColor: 'var(--brand-red)',
+                            color: '#FFFFFF',
+                            border: '2px solid #181818',
+                            borderRadius: '6px',
+                            padding: '0.5rem 0.9rem',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {savingGradeId === sub.id ? 'Salvando...' : 'Salvar Nota'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
