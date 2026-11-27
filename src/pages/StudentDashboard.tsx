@@ -10,6 +10,11 @@ import {
   getLessonAccessInfo,
 } from '../data/courseCatalog';
 import {
+  calculateStudentEngagement,
+  type StudentAssignmentActivity,
+  type StudentLessonActivity,
+} from '../utils/studentEngagement';
+import {
   BookOpen,
   CheckCircle,
   PlayCircle,
@@ -94,6 +99,63 @@ function normalizeStudentDashboardData(value: unknown): StudentDashboardData | n
   };
 }
 
+function normalizeStudentAssignment(value: unknown): StudentAssignmentActivity | null {
+  if (typeof value !== 'object' || value === null) {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const id = getApiField(record, 'id') ?? getApiField(record, 'assignmentId');
+  if (typeof id !== 'string' || !id.trim()) {
+    return null;
+  }
+
+  const dueDate = getApiField(record, 'dueDate');
+  const rawIsSubmitted =
+    getApiField(record, 'isSubmitted') ??
+    getApiField(record, 'submitted') ??
+    getApiField(record, 'hasSubmitted');
+  const status = getApiField(record, 'status');
+  const nestedSubmission =
+    getApiField(record, 'mySubmission') ?? getApiField(record, 'submission');
+
+  let isSubmitted = typeof rawIsSubmitted === 'boolean' ? rawIsSubmitted : false;
+  let grade: number | null = null;
+
+  const topGrade = getApiField(record, 'grade');
+  if (typeof topGrade === 'number' && !Number.isNaN(topGrade)) {
+    grade = topGrade;
+  }
+
+  if (typeof status === 'string') {
+    const normalizedStatus = status.toLowerCase();
+    if (
+      normalizedStatus === 'submitted' ||
+      normalizedStatus === 'graded' ||
+      normalizedStatus === 'entregue' ||
+      normalizedStatus === 'avaliada' ||
+      normalizedStatus === 'completed'
+    ) {
+      isSubmitted = true;
+    }
+  }
+
+  if (typeof nestedSubmission === 'object' && nestedSubmission !== null) {
+    isSubmitted = true;
+    const subGrade = getApiField(nestedSubmission as Record<string, unknown>, 'grade');
+    if (typeof subGrade === 'number' && !Number.isNaN(subGrade)) {
+      grade = subGrade;
+    }
+  }
+
+  return {
+    assignmentId: id,
+    dueDate: typeof dueDate === 'string' ? dueDate : null,
+    isSubmitted,
+    grade,
+  };
+}
+
 export function StudentDashboard() {
   const [data, setData] = useState<StudentDashboardData>(studentDashboardMock);
   const [subLevelLessons, setSubLevelLessons] = useState<{
@@ -102,6 +164,8 @@ export function StudentDashboard() {
   } | null>(null);
   const [completedCatalogIds, setCompletedCatalogIds] = useState<string[]>([]);
   const [catalogProgressLoaded, setCatalogProgressLoaded] = useState(false);
+  const [studentAssignments, setStudentAssignments] = useState<StudentAssignmentActivity[]>([]);
+  const [assignmentsLoaded, setAssignmentsLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [usingMock, setUsingMock] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -138,6 +202,28 @@ export function StudentDashboard() {
       })
       .catch((err: unknown) => {
         console.error('Erro ao carregar progresso do catálogo:', err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get<unknown>('/Assignment')
+      .then((response) => {
+        if (!cancelled && Array.isArray(response.data)) {
+          const normalized = response.data
+            .map(normalizeStudentAssignment)
+            .filter((item): item is StudentAssignmentActivity => item !== null);
+          setStudentAssignments(normalized);
+          setAssignmentsLoaded(true);
+        }
+      })
+      .catch((err: unknown) => {
+        console.error('Erro ao carregar tarefas do aluno:', err);
       });
 
     return () => {
@@ -214,9 +300,45 @@ export function StudentDashboard() {
       ? 'Aguardando este dado no serviço do dashboard.'
       : `${data.completedLessonsCount} de ${data.totalLessonsCount} lições concluídas.`;
 
-  const assignmentProgress = data.totalAssignmentsCount
-    ? Math.round(((data.completedAssignmentsCount ?? 0) / data.totalAssignmentsCount) * 100)
-    : undefined;
+  // Contagem de tarefas: prioriza os dados carregados de /Assignment e usa o dashboard como fallback
+  const effectiveTotalAssignments = assignmentsLoaded
+    ? studentAssignments.length
+    : data.totalAssignmentsCount;
+
+  const effectiveCompletedAssignments = assignmentsLoaded
+    ? studentAssignments.filter((item) => item.isSubmitted).length
+    : (data.completedAssignmentsCount ?? 0);
+
+  const assignmentProgress =
+    effectiveTotalAssignments !== undefined && effectiveTotalAssignments > 0
+      ? Math.round((effectiveCompletedAssignments / effectiveTotalAssignments) * 100)
+      : undefined;
+
+  const assignmentsMetricDescription =
+    effectiveTotalAssignments === undefined
+      ? 'Aguardando este dado no serviço do dashboard.'
+      : effectiveTotalAssignments === 0
+        ? 'Nenhuma tarefa atribuída até o momento.'
+        : `${effectiveCompletedAssignments} de ${effectiveTotalAssignments} tarefas entregues.`;
+
+  // Assiduidade automática cruzando aulas concluídas, tarefas e notas
+  const engagementBreakdown = useMemo(() => {
+    const lessonActivities: StudentLessonActivity[] = completedCatalogIds.map((id) => ({
+      catalogLessonId: id,
+      completedAt: null,
+    }));
+
+    return calculateStudentEngagement({
+      lessons: lessonActivities,
+      assignments: studentAssignments,
+      totalCatalogLessons: catalogProgress.totalLessons,
+    });
+  }, [completedCatalogIds, studentAssignments, catalogProgress.totalLessons]);
+
+  const effectiveAttendancePercentage =
+    usingMock && !catalogProgressLoaded && !assignmentsLoaded
+      ? data.attendancePercentage
+      : engagementBreakdown.score;
 
   const completedCatalogSet = useMemo(
     () => new Set(completedCatalogIds),
@@ -454,12 +576,12 @@ export function StudentDashboard() {
 
       <section className="dashboard-metrics" aria-label="Suas métricas de aprendizagem">
         <DashboardMetricCard
-          label="Frequência geral"
-          value={`${data.attendancePercentage}%`}
+          label="Assiduidade geral"
+          value={`${effectiveAttendancePercentage}%`}
           description="Meta mínima recomendada: 75%."
           icon={Award}
-          tone={data.attendancePercentage < 75 ? 'red' : 'green'}
-          progress={data.attendancePercentage}
+          tone={effectiveAttendancePercentage < 75 ? 'red' : 'green'}
+          progress={effectiveAttendancePercentage}
         />
         <DashboardMetricCard
           label="Lições concluídas"
@@ -472,11 +594,7 @@ export function StudentDashboard() {
         <DashboardMetricCard
           label="Tarefas concluídas"
           value={assignmentProgress === undefined ? '—' : `${assignmentProgress}%`}
-          description={
-            data.totalAssignmentsCount === undefined
-              ? 'Aguardando este dado no serviço do dashboard.'
-              : `${data.completedAssignmentsCount ?? 0} de ${data.totalAssignmentsCount} tarefas entregues.`
-          }
+          description={assignmentsMetricDescription}
           icon={FileCheck}
           tone="black"
           progress={assignmentProgress}

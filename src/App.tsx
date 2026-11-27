@@ -11,7 +11,7 @@ import { LessonViewer } from './pages/LessonViewer';
 import { Assignments } from './pages/Assignments';
 import type { JSX } from 'react/jsx-runtime';
 import { StudentMaterials } from './pages/StudentMaterials';
-
+import { Exams } from './pages/Exams';
 import { About } from './pages/About';
 
 function PrivateRoute({ children }: { children: JSX.Element }) {
@@ -35,7 +35,7 @@ export function App() {
           <Route path="/dashboard/student/ipa" element={<PrivateRoute><StudentIpaPage /></PrivateRoute>} />
           <Route path="/students" element={<PrivateRoute><StudentManagement /></PrivateRoute>} />
           <Route path="/assignments" element={<PrivateRoute><Assignments /></PrivateRoute>} />
-          
+          <Route path="/exams" element={<PrivateRoute><Exams /></PrivateRoute>} />
 
           <Route path="/study-materials" element={<PrivateRoute><StudentMaterials /></PrivateRoute>} />
           <Route path="/lesson/:lessonId" element={<PrivateRoute><LessonViewer /></PrivateRoute>} />

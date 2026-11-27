@@ -35,6 +35,7 @@ interface AssignmentItem {
   title: string;
   description: string;
   dueDate: string | null;
+  type?: string;
   catalogLessonId: string | null;
   lessonId: string | null;
   submissionId: string | null;
@@ -91,6 +92,7 @@ function normalizeAssignment(value: unknown): AssignmentItem | null {
 
   const description = getField(item, 'description');
   const dueDate = getField(item, 'dueDate');
+  const rawType = getField(item, 'type');
   const catalogLessonId = getField(item, 'catalogLessonId');
   const lessonId = getField(item, 'lessonId');
   const submissionId = getField(item, 'submissionId');
@@ -111,6 +113,7 @@ function normalizeAssignment(value: unknown): AssignmentItem | null {
     title,
     description: typeof description === 'string' ? description : '',
     dueDate: typeof dueDate === 'string' ? dueDate : null,
+    type: typeof rawType === 'string' && rawType.trim() ? rawType.trim() : 'Homework',
     catalogLessonId: typeof catalogLessonId === 'string' && catalogLessonId.trim() ? catalogLessonId : null,
     lessonId: typeof lessonId === 'string' && lessonId.trim() ? lessonId : null,
     submissionId: typeof submissionId === 'string' && submissionId.trim() ? submissionId : null,
@@ -234,7 +237,10 @@ export function Assignments() {
       }
       const normalized = res.data
         .map(normalizeAssignment)
-        .filter((item): item is AssignmentItem => item !== null);
+        .filter(
+          (item): item is AssignmentItem =>
+            item !== null && (item.type ?? 'Homework').toLowerCase() !== 'exam'
+        );
       setAssignments(normalized);
     } catch (err) {
       console.error('Erro ao carregar tarefas:', err);
@@ -351,7 +357,7 @@ export function Assignments() {
 
     try {
       const payload = {
-        title: title.trim(),
+       title: title.trim(),
         description: description.trim(),
         dueDate: new Date(`${dueDate}T23:59:59`).toISOString(),
         catalogLessonId: catalogLessonId || null,
